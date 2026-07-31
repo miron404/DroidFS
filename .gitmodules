@@ -1,6 +1,6 @@
 [submodule "libpdfviewer"]
 	path = libpdfviewer
-	url = https://github.com/hardcore-sushi/libpdfviewer.git
+	url = https://github.com/miron404/libpdfviewer.git
 [submodule "app/ffmpeg/ffmpeg"]
 	path = app/ffmpeg/ffmpeg
 	url = https://git.ffmpeg.org/ffmpeg.git
