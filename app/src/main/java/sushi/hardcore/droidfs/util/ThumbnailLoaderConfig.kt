@@ -8,6 +8,7 @@ import coil3.request.ImageRequest
 import coil3.video.VideoFrameDecoder
 import coil3.video.preferVideoFrameEmbeddedThumbnailKey
 import coil3.video.videoFramePercent
+import okio.Path
 import sushi.hardcore.droidfs.filesystems.EncryptedFileReaderFileSystem
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 import java.io.File
@@ -17,7 +18,7 @@ object ThumbnailLoaderConfig {
     fun imageLoader(context: Context, encryptedVolume: EncryptedVolume): ImageLoader {
         val cacheDir = File(context.cacheDir, "thumbnails")
         return ImageLoader.Builder(context)
-            .diskCache(DiskCache.Builder().directory(cacheDir).build())
+            .diskCache(DiskCache.Builder().directory(Path(cacheDir.absolutePath)).build())
             .fileSystem(EncryptedFileReaderFileSystem(encryptedVolume))
             .components {
                 add(VideoFrameDecoder.Factory())
