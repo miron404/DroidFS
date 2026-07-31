@@ -10,11 +10,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.ServiceInfo
+import android.content.ContentValues
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -400,6 +403,13 @@ class FileOperationService : Service() {
                 }
                 encryptedVolume.truncate(dstPath, offset)
                 encryptedVolume.closeFile(dstFileHandle)
+                // Preserve original modification time
+                if (success) {
+                    val srcAttr = srcEncryptedVolume.getAttr(srcPath)
+                    if (srcAttr != null) {
+                        encryptedVolume.setMtime(dstPath, srcAttr.mTime)
+                    }
+                }
             } else {
                 success = false
             }
@@ -475,7 +485,22 @@ class FileOperationService : Service() {
         for (i in dstPaths.indices) {
             yield()
             try {
-                if (!encryptedVolume.importFile(this@FileOperationService, uris[i], dstPaths[i])) {
+                // Query source file's last modified time
+                var mtime: Long = -1
+                contentResolver.query(uris[i], null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(OpenableColumns.LAST_MODIFIED)
+                        if (idx >= 0) {
+                            mtime = cursor.getLong(idx)
+                        }
+                    }
+                }
+                val inputStream = contentResolver.openInputStream(uris[i])
+                if (inputStream != null) {
+                    if (!encryptedVolume.importFile(inputStream, dstPaths[i], mtime)) {
+                        failedIndex = i
+                    }
+                } else {
                     failedIndex = i
                 }
             } catch (e: FileNotFoundException) {
@@ -571,13 +596,30 @@ class FileOperationService : Service() {
     }
 
     private fun exportFileInto(encryptedVolume: EncryptedVolume, srcPath: String, treeDocumentFile: DocumentFile): Boolean {
-        val outputStream = treeDocumentFile.createFile("*/*", File(srcPath).name)?.uri?.let {
+        val createdFile = treeDocumentFile.createFile("*/*", File(srcPath).name)
+        val outputStream = createdFile?.uri?.let {
             contentResolver.openOutputStream(it)
         }
         return if (outputStream == null) {
             false
         } else {
-            encryptedVolume.exportFile(srcPath, outputStream)
+            val success = encryptedVolume.exportFile(srcPath, outputStream)
+            // Preserve original modification time
+            if (success) {
+                val srcAttr = encryptedVolume.getAttr(srcPath)
+                if (srcAttr != null) {
+                    // Try to set via content resolver
+                    try {
+                        val values = android.content.ContentValues().apply {
+                            put(DocumentsContract.Document.COLUMN_LAST_MODIFIED, srcAttr.mTime)
+                        }
+                        createdFile?.uri?.let { uri ->
+                            contentResolver.update(uri, values, null, null)
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            success
         }
     }
 

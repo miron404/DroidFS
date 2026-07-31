@@ -93,6 +93,8 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
     protected abstract fun close()
     abstract fun isClosed(): Boolean
 
+    open fun setMtime(path: String, mtime: Long): Boolean = false
+
     fun closeVolume() {
         observers.forEach { it.onClose() }
         close()
@@ -125,7 +127,14 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
     }
 
     fun exportFile(src_path: String, dst_path: String): Boolean {
-        return exportFile(src_path, FileOutputStream(dst_path))
+        val success = exportFile(src_path, FileOutputStream(dst_path))
+        if (success) {
+            val srcAttr = getAttr(src_path)
+            if (srcAttr != null) {
+                File(dst_path).setLastModified(srcAttr.mTime)
+            }
+        }
+        return success
     }
 
     fun exportFile(context: Context, src_path: String, output_path: Uri): Boolean {
@@ -136,7 +145,7 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
         return false
     }
 
-    fun importFile(inputStream: InputStream, dst_path: String): Boolean {
+    fun importFile(inputStream: InputStream, dst_path: String, mtime: Long = -1): Boolean {
         val dstfileHandle = openFileWriteMode(dst_path)
         if (dstfileHandle != -1L) {
             var success = true
@@ -155,6 +164,9 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
             truncate(dst_path, offset)
             closeFile(dstfileHandle)
             inputStream.close()
+            if (success && mtime > 0) {
+                setMtime(dst_path, mtime)
+            }
             return success
         }
         return false

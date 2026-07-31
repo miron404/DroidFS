@@ -405,6 +405,15 @@ class PlainVolume(
         }
     }
 
+    override fun setMtime(path: String, mtime: Long): Boolean {
+        return try {
+            val realPath = getRealPath(path)
+            File(realPath).setLastModified(mtime)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     override fun close() {
         // Close all open file handles
         volumeFileHandles.values.forEach { raf ->
