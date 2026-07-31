@@ -37,9 +37,6 @@ class PlainVolume(
 
         private const val TAG = "PlainVolume"
 
-        // Read-ahead: fetch from disk in 512KB chunks, serve small reads from buffer
-        private const val READ_CACHE_SIZE = 512 * 1024
-
         private fun computeHash(password: ByteArray, salt: ByteArray): ByteArray {
             val spec = PBEKeySpec(
                 String(password, Charsets.UTF_8).toCharArray(),
@@ -58,9 +55,7 @@ class PlainVolume(
         ): Boolean {
             return try {
                 val dir = File(rootPath)
-                if (!dir.exists()) {
-                    dir.mkdirs()
-                }
+                if (!dir.exists()) dir.mkdirs()
                 val salt = ByteArray(SALT_SIZE)
                 SecureRandom().nextBytes(salt)
                 val hash = computeHash(password, salt)
@@ -76,9 +71,7 @@ class PlainVolume(
                     put("hash", Base64.getEncoder().encodeToString(hash))
                 }
 
-                val configFile = File(rootPath, CONFIG_FILE_NAME)
-                configFile.writeText(configJson.toString(4))
-
+                File(rootPath, CONFIG_FILE_NAME).writeText(configJson.toString(4))
                 volume.value = PlainVolume(rootPath, ConcurrentHashMap(), AtomicLong(0))
                 true
             } catch (e: Exception) {
@@ -185,18 +178,6 @@ class PlainVolume(
         }
     }
 
-    // ── Read-ahead cache ──────────────────────────────────────────────
-
-    private class ReadCache(
-        val channel: FileChannel,
-    ) {
-        var cacheStart: Long = -1
-        var cacheEnd: Long = -1
-        val buf: ByteArray = ByteArray(READ_CACHE_SIZE)
-    }
-
-    private val readCaches = ConcurrentHashMap<Long, ReadCache>()
-
     // ── Path helpers ──────────────────────────────────────────────────
 
     private fun getRealPath(volumePath: String): String {
@@ -214,7 +195,6 @@ class PlainVolume(
             val raf = RandomAccessFile(getRealPath(path), "r")
             val handle = newHandle()
             volumeFileHandles[handle] = raf
-            readCaches[handle] = ReadCache(raf.channel)
             handle
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open file for read: $path: ${e.message}")
@@ -238,11 +218,6 @@ class PlainVolume(
     }
 
     override fun read(fileHandle: Long, fileOffset: Long, buffer: ByteArray, dstOffset: Long, length: Long): Int {
-        val cache = readCaches[fileHandle]
-        if (cache != null) {
-            return readCached(cache, buffer, dstOffset.toInt(), fileOffset, length.toInt())
-        }
-        // Write-mode handle (no read cache) — use FileChannel positional read
         val raf = volumeFileHandles[fileHandle] ?: return -1
         return try {
             val toRead = minOf(length, (buffer.size - dstOffset).toLong()).toInt()
@@ -253,49 +228,6 @@ class PlainVolume(
         } catch (e: Exception) {
             Log.e(TAG, "Read failed: ${e.message}")
             -1
-        }
-    }
-
-    /**
-     * Read through a read-ahead cache. On cache hit, copy directly from buffer.
-     * On miss, refill from disk in [READ_CACHE_SIZE] chunks using
-     * [FileChannel.read(ByteBuffer, position)] — a single positional syscall
-     * (like pread), thread-safe, no seek required.
-     */
-    private fun readCached(cache: ReadCache, buffer: ByteArray, dstOffset: Int, fileOffset: Long, length: Int): Int {
-        try {
-            var remaining = length
-            var currentOffset = fileOffset
-            var currentDst = dstOffset
-            var totalRead = 0
-
-            while (remaining > 0) {
-                if (currentOffset >= cache.cacheStart && currentOffset < cache.cacheEnd) {
-                    // Cache hit
-                    val avail = (cache.cacheEnd - currentOffset).toInt()
-                    val toCopy = minOf(remaining, avail)
-                    System.arraycopy(cache.buf, (currentOffset - cache.cacheStart).toInt(),
-                                     buffer, currentDst, toCopy)
-                    currentOffset += toCopy
-                    currentDst += toCopy
-                    remaining -= toCopy
-                    totalRead += toCopy
-                } else {
-                    // Cache miss — refill from disk
-                    cache.cacheStart = currentOffset
-                    val bb = ByteBuffer.wrap(cache.buf)
-                    val n = cache.channel.read(bb, currentOffset)
-                    if (n <= 0) {
-                        cache.cacheEnd = cache.cacheStart
-                        break
-                    }
-                    cache.cacheEnd = currentOffset + n
-                }
-            }
-            return if (totalRead == 0 && cache.cacheStart >= cache.cacheEnd) -1 else totalRead
-        } catch (e: Exception) {
-            Log.e(TAG, "Read(cached) failed: ${e.message}")
-            return -1
         }
     }
 
@@ -314,7 +246,6 @@ class PlainVolume(
     }
 
     override fun closeFile(fileHandle: Long): Boolean {
-        readCaches.remove(fileHandle)
         val raf = volumeFileHandles.remove(fileHandle) ?: return false
         return try {
             raf.close()
@@ -341,9 +272,7 @@ class PlainVolume(
             val realPath = getRealPath(path)
             if (File(realPath).name == CONFIG_FILE_NAME) return false
             File(realPath).delete()
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 
     override fun readDir(path: String): MutableList<ExplorerElement>? {
@@ -375,9 +304,7 @@ class PlainVolume(
         return try {
             if (!file.exists()) return null
             Stat(if (file.isDirectory) Stat.S_IFDIR else Stat.S_IFREG, file.length(), file.lastModified())
-        } catch (e: Exception) {
-            null
-        }
+        } catch (e: Exception) { null }
     }
 
     override fun mkdir(path: String): Boolean {
@@ -409,7 +336,6 @@ class PlainVolume(
     }
 
     override fun close() {
-        readCaches.clear()
         volumeFileHandles.values.forEach { try { it.close() } catch (_: Exception) {} }
         volumeFileHandles.clear()
     }
