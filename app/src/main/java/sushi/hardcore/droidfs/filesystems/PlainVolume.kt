@@ -5,8 +5,9 @@ import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.explorers.ExplorerElement
 import sushi.hardcore.droidfs.util.ObjRef
 import java.io.File
-import java.io.FileNotFoundException
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Arrays
@@ -32,9 +33,12 @@ class PlainVolume(
         private const val PBKDF2_ITERATIONS = 210_000
         private const val SALT_SIZE = 16
         private const val HASH_SIZE = 32
-        const val KEY_LEN = HASH_SIZE // for returnedHash sizing
+        const val KEY_LEN = HASH_SIZE
 
         private const val TAG = "PlainVolume"
+
+        // Read-ahead: fetch from disk in 512KB chunks, serve small reads from buffer
+        private const val READ_CACHE_SIZE = 512 * 1024
 
         private fun computeHash(password: ByteArray, salt: ByteArray): ByteArray {
             val spec = PBEKeySpec(
@@ -75,11 +79,7 @@ class PlainVolume(
                 val configFile = File(rootPath, CONFIG_FILE_NAME)
                 configFile.writeText(configJson.toString(4))
 
-                volume.value = PlainVolume(
-                    rootPath,
-                    ConcurrentHashMap(),
-                    AtomicLong(0)
-                )
+                volume.value = PlainVolume(rootPath, ConcurrentHashMap(), AtomicLong(0))
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create volume: ${e.message}")
@@ -108,11 +108,9 @@ class PlainVolume(
 
                 val hashToCompare: ByteArray
                 if (givenHash != null) {
-                    // Biometric unlock: givenHash is already the validated hash from Keystore
                     hashToCompare = givenHash
                 } else if (password != null) {
                     hashToCompare = computeHash(password, storedSalt)
-                    // Wipe password after use
                     Arrays.fill(password, 0)
                 } else {
                     result.errorCode = -2
@@ -128,27 +126,17 @@ class PlainVolume(
                     return result.build()
                 }
 
-                // Write hash to returnedHash if provided
                 returnedHash?.let { dest ->
-                    System.arraycopy(computeHashForReturn(storedSalt, hashToCompare), 0, dest, 0, minOf(KEY_LEN, dest.size))
+                    System.arraycopy(hashToCompare.copyOf(), 0, dest, 0, minOf(KEY_LEN, dest.size))
                 }
 
-                result.volume = PlainVolume(
-                    rootPath,
-                    ConcurrentHashMap(),
-                    AtomicLong(0)
-                )
+                result.volume = PlainVolume(rootPath, ConcurrentHashMap(), AtomicLong(0))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to init volume: ${e.message}")
                 result.errorCode = -1
                 result.errorStringId = R.string.config_load_error
             }
             return result.build()
-        }
-
-        private fun computeHashForReturn(salt: ByteArray, computedHash: ByteArray): ByteArray {
-            // Return a copy of the computed hash for biometric storage
-            return computedHash.copyOf()
         }
 
         fun changePassword(
@@ -166,7 +154,6 @@ class PlainVolume(
                 val storedSalt = Base64.getDecoder().decode(configJson.getString("salt"))
                 val storedHash = Base64.getDecoder().decode(configJson.getString("hash"))
 
-                // Verify current password or givenHash
                 val hashToCheck: ByteArray
                 if (givenHash != null) {
                     hashToCheck = givenHash
@@ -177,25 +164,19 @@ class PlainVolume(
                     return false
                 }
 
-                if (!MessageDigest.isEqual(hashToCheck, storedHash)) {
-                    return false
-                }
+                if (!MessageDigest.isEqual(hashToCheck, storedHash)) return false
 
-                // Generate new salt and hash for new password
                 val newSalt = ByteArray(SALT_SIZE)
                 SecureRandom().nextBytes(newSalt)
                 val newHash = computeHash(newPassword, newSalt)
 
-                // Update config
                 configJson.put("salt", Base64.getEncoder().encodeToString(newSalt))
                 configJson.put("hash", Base64.getEncoder().encodeToString(newHash))
                 configFile.writeText(configJson.toString(4))
 
-                // Write new hash to returnedHash if provided
                 returnedHash?.let { dest ->
                     System.arraycopy(newHash, 0, dest, 0, minOf(KEY_LEN, dest.size))
                 }
-
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to change password: ${e.message}")
@@ -204,36 +185,36 @@ class PlainVolume(
         }
     }
 
+    // ── Read-ahead cache ──────────────────────────────────────────────
+
+    private class ReadCache(
+        val channel: FileChannel,
+    ) {
+        var cacheStart: Long = -1
+        var cacheEnd: Long = -1
+        val buf: ByteArray = ByteArray(READ_CACHE_SIZE)
+    }
+
+    private val readCaches = ConcurrentHashMap<Long, ReadCache>()
+
+    // ── Path helpers ──────────────────────────────────────────────────
+
     private fun getRealPath(volumePath: String): String {
-        return if (volumePath == "/") {
-            rootPath
-        } else if (volumePath.startsWith("/")) {
-            File(rootPath, volumePath.substring(1)).path
-        } else {
-            File(rootPath, volumePath).path
-        }
+        return if (volumePath == "/") rootPath
+        else if (volumePath.startsWith("/")) File(rootPath, volumePath.substring(1)).path
+        else File(rootPath, volumePath).path
     }
 
-    private fun getVolumePath(realPath: String): String {
-        return if (realPath == rootPath) {
-            "/"
-        } else if (realPath.startsWith(rootPath + "/")) {
-            realPath.substring(rootPath.length)
-        } else {
-            realPath
-        }
-    }
+    private fun newHandle(): Long = handleCounter.incrementAndGet()
 
-    private fun newHandle(): Long {
-        return handleCounter.incrementAndGet()
-    }
+    // ── EncryptedVolume abstract methods ──────────────────────────────
 
     override fun openFileReadMode(path: String): Long {
         return try {
-            val realPath = getRealPath(path)
-            val file = RandomAccessFile(realPath, "r")
+            val raf = RandomAccessFile(getRealPath(path), "r")
             val handle = newHandle()
-            volumeFileHandles[handle] = file
+            volumeFileHandles[handle] = raf
+            readCaches[handle] = ReadCache(raf.channel)
             handle
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open file for read: $path: ${e.message}")
@@ -244,13 +225,11 @@ class PlainVolume(
     override fun openFileWriteMode(path: String): Long {
         return try {
             val realPath = getRealPath(path)
-            // Prevent writing to the volume config file
             if (File(realPath).name == CONFIG_FILE_NAME) return -1L
-            // Ensure parent directory exists
             File(realPath).parentFile?.mkdirs()
-            val file = RandomAccessFile(realPath, "rw")
+            val raf = RandomAccessFile(realPath, "rw")
             val handle = newHandle()
-            volumeFileHandles[handle] = file
+            volumeFileHandles[handle] = raf
             handle
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open file for write: $path: ${e.message}")
@@ -259,14 +238,60 @@ class PlainVolume(
     }
 
     override fun read(fileHandle: Long, fileOffset: Long, buffer: ByteArray, dstOffset: Long, length: Long): Int {
+        val cache = readCaches[fileHandle]
+        if (cache != null) {
+            return readCached(cache, buffer, dstOffset.toInt(), fileOffset, length.toInt())
+        }
+        // Write-mode handle (no read cache) — use FileChannel positional read
         val raf = volumeFileHandles[fileHandle] ?: return -1
         return try {
-            raf.seek(fileOffset)
             val toRead = minOf(length, (buffer.size - dstOffset).toLong()).toInt()
             if (toRead <= 0) return 0
-            raf.read(buffer, dstOffset.toInt(), toRead)
+            val bb = ByteBuffer.wrap(buffer, dstOffset.toInt(), toRead)
+            val n = raf.channel.read(bb, fileOffset)
+            if (n < 0) -1 else n
         } catch (e: Exception) {
             Log.e(TAG, "Read failed: ${e.message}")
+            -1
+        }
+    }
+
+    /**
+     * Read through a read-ahead cache. On cache hit, copy directly from buffer.
+     * On miss, refill from disk in [READ_CACHE_SIZE] chunks using
+     * [FileChannel.read(ByteBuffer, position)] — a single positional syscall
+     * (like pread), thread-safe, no seek required.
+     */
+    private fun readCached(cache: ReadCache, buffer: ByteArray, dstOffset: Int, fileOffset: Long, length: Int): Int {
+        try {
+            var remaining = length
+            var currentOffset = fileOffset
+            var currentDst = dstOffset
+            var totalRead = 0
+
+            while (remaining > 0) {
+                if (currentOffset >= cache.cacheStart && currentOffset < cache.cacheEnd) {
+                    // Cache hit
+                    val avail = (cache.cacheEnd - currentOffset).toInt()
+                    val toCopy = minOf(remaining, avail)
+                    System.arraycopy(cache.buf, (currentOffset - cache.cacheStart).toInt(),
+                                     buffer, currentDst, toCopy)
+                    currentOffset += toCopy
+                    currentDst += toCopy
+                    remaining -= toCopy
+                    totalRead += toCopy
+                } else {
+                    // Cache miss — refill from disk
+                    cache.cacheStart = currentOffset
+                    val bb = ByteBuffer.wrap(cache.buf)
+                    val n = cache.channel.read(bb, currentOffset)
+                    if (n <= 0) break // EOF or error
+                    cache.cacheEnd = currentOffset + n
+                }
+            }
+            return if (totalRead == 0 && cache.cacheStart >= cache.cacheEnd) -1 else totalRead
+        } catch (e: Exception) {
+            Log.e(TAG, "Read(cached) failed: ${e.message}")
             -1
         }
     }
@@ -274,10 +299,10 @@ class PlainVolume(
     override fun write(fileHandle: Long, fileOffset: Long, buffer: ByteArray, srcOffset: Long, length: Long): Int {
         val raf = volumeFileHandles[fileHandle] ?: return -1
         return try {
-            raf.seek(fileOffset)
             val toWrite = minOf(length, (buffer.size - srcOffset).toLong()).toInt()
             if (toWrite <= 0) return 0
-            raf.write(buffer, srcOffset.toInt(), toWrite)
+            val bb = ByteBuffer.wrap(buffer, srcOffset.toInt(), toWrite)
+            raf.channel.write(bb, fileOffset)
             toWrite
         } catch (e: Exception) {
             Log.e(TAG, "Write failed: ${e.message}")
@@ -286,6 +311,7 @@ class PlainVolume(
     }
 
     override fun closeFile(fileHandle: Long): Boolean {
+        readCaches.remove(fileHandle)
         val raf = volumeFileHandles.remove(fileHandle) ?: return false
         return try {
             raf.close()
@@ -298,11 +324,8 @@ class PlainVolume(
     override fun truncate(path: String, size: Long): Boolean {
         return try {
             val realPath = getRealPath(path)
-            // Prevent truncation of the volume config file
             if (File(realPath).name == CONFIG_FILE_NAME) return false
-            val raf = RandomAccessFile(realPath, "rw")
-            raf.setLength(size)
-            raf.close()
+            RandomAccessFile(realPath, "rw").use { it.setLength(size) }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Truncate failed: ${e.message}")
@@ -313,7 +336,6 @@ class PlainVolume(
     override fun deleteFile(path: String): Boolean {
         return try {
             val realPath = getRealPath(path)
-            // Prevent deletion of the volume config file
             if (File(realPath).name == CONFIG_FILE_NAME) return false
             File(realPath).delete()
         } catch (e: Exception) {
@@ -331,16 +353,11 @@ class PlainVolume(
             val result = mutableListOf<ExplorerElement>()
 
             for (file in files) {
-                // Hide the volume config file from the user
                 if (file.name == CONFIG_FILE_NAME) continue
                 val stat = fileToStat(file)
                 if (stat != null) {
                     result.add(ExplorerElement.new(
-                        file.name,
-                        stat.type,
-                        stat.size,
-                        stat.mTime / 1000, // ExplorerElement.new expects seconds
-                        path
+                        file.name, stat.type, stat.size, stat.mTime / 1000, path
                     ))
                 }
             }
@@ -354,79 +371,45 @@ class PlainVolume(
     private fun fileToStat(file: File): Stat? {
         return try {
             if (!file.exists()) return null
-            val mode = if (file.isDirectory) Stat.S_IFDIR else Stat.S_IFREG
-            Stat(mode, file.length(), file.lastModified())
+            Stat(if (file.isDirectory) Stat.S_IFDIR else Stat.S_IFREG, file.length(), file.lastModified())
         } catch (e: Exception) {
             null
         }
     }
 
     override fun mkdir(path: String): Boolean {
-        return try {
-            val realPath = getRealPath(path)
-            File(realPath).mkdirs()
-        } catch (e: Exception) {
-            false
-        }
+        return try { File(getRealPath(path)).mkdirs() } catch (e: Exception) { false }
     }
 
     override fun rmdir(path: String): Boolean {
         return try {
-            val realPath = getRealPath(path)
-            val dir = File(realPath)
-            if (dir.isDirectory && (dir.list()?.isEmpty() == true)) {
-                dir.delete()
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            false
-        }
+            val dir = File(getRealPath(path))
+            dir.isDirectory && dir.list()?.isEmpty() == true && dir.delete()
+        } catch (e: Exception) { false }
     }
 
     override fun getAttr(path: String): Stat? {
-        return try {
-            val realPath = getRealPath(path)
-            fileToStat(File(realPath))
-        } catch (e: Exception) {
-            null
-        }
+        return try { fileToStat(File(getRealPath(path))) } catch (e: Exception) { null }
     }
 
     override fun rename(srcPath: String, dstPath: String): Boolean {
         return try {
             val realSrc = getRealPath(srcPath)
             val realDst = getRealPath(dstPath)
-            // Prevent renaming of the volume config file
             if (File(realSrc).name == CONFIG_FILE_NAME || File(realDst).name == CONFIG_FILE_NAME) return false
             File(realSrc).renameTo(File(realDst))
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 
     override fun setMtime(path: String, mtime: Long): Boolean {
-        return try {
-            val realPath = getRealPath(path)
-            File(realPath).setLastModified(mtime)
-        } catch (e: Exception) {
-            false
-        }
+        return try { File(getRealPath(path)).setLastModified(mtime) } catch (e: Exception) { false }
     }
 
     override fun close() {
-        // Close all open file handles
-        volumeFileHandles.values.forEach { raf ->
-            try {
-                raf.close()
-            } catch (_: Exception) {}
-        }
+        readCaches.clear()
+        volumeFileHandles.values.forEach { try { it.close() } catch (_: Exception) {} }
         volumeFileHandles.clear()
     }
 
-    override fun isClosed(): Boolean {
-        // PlainVolume doesn't have a persistent session; files are closed individually.
-        // The volume is "closed" when all file handles are closed.
-        return volumeFileHandles.isEmpty()
-    }
+    override fun isClosed(): Boolean = volumeFileHandles.isEmpty()
 }

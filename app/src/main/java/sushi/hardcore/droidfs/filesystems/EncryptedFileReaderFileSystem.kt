@@ -51,18 +51,21 @@ class EncryptedFileReaderFileSystem(private val encryptedVolume: EncryptedVolume
         private val encryptedVolume: EncryptedVolume,
         private val fileHandle: Long
     ) : Source {
-        private var fileOffset = 0
+        private var fileOffset = 0L
+        private val readBuffer = ByteArray(8192) // reusable, Okio typically reads 8KB
 
         override fun close() {
             encryptedVolume.closeFile(fileHandle)
         }
 
         override fun read(sink: Buffer, byteCount: Long): Long {
-            val buffer = ByteArray(byteCount.toInt())
-            val read = encryptedVolume.read(fileHandle, fileOffset.toLong(), buffer, 0, byteCount)
-            sink.write(buffer)
-            fileOffset += read
-            return read.toLong()
+            val toRead = minOf(byteCount, readBuffer.size.toLong()).toInt()
+            val n = encryptedVolume.read(fileHandle, fileOffset, readBuffer, 0, toRead.toLong())
+            if (n > 0) {
+                sink.write(readBuffer, 0, n)
+                fileOffset += n
+            }
+            return n.toLong()
         }
 
         override fun timeout() = Timeout.NONE
