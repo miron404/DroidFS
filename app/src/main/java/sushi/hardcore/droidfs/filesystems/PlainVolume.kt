@@ -285,14 +285,17 @@ class PlainVolume(
                     cache.cacheStart = currentOffset
                     val bb = ByteBuffer.wrap(cache.buf)
                     val n = cache.channel.read(bb, currentOffset)
-                    if (n <= 0) break // EOF or error
+                    if (n <= 0) {
+                        cache.cacheEnd = cache.cacheStart
+                        break
+                    }
                     cache.cacheEnd = currentOffset + n
                 }
             }
             return if (totalRead == 0 && cache.cacheStart >= cache.cacheEnd) -1 else totalRead
         } catch (e: Exception) {
             Log.e(TAG, "Read(cached) failed: ${e.message}")
-            -1
+            return -1
         }
     }
 
