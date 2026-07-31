@@ -131,21 +131,21 @@ class ExplorerElementAdapter(
             if (cached != null) {
                 return icon.load(cached, adapter.activity.imageLoader) { placeholder(placeholder) }
             }
-            // Cache miss — load through Coil, then save to cache for next time
+            // Cache miss — load through Coil, then save result for next time
             val disposable = icon.load(safePath, adapter.thumbnailsLoader!!) {
                 ThumbnailLoaderConfig.applyVideoConfig(this)
                 placeholder(placeholder)
             }
-            icon.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
-                override fun onPreDraw(): Boolean {
-                    icon.viewTreeObserver.removeOnPreDrawListener(this)
-                    val drawable = icon.drawable
-                    if (drawable is android.graphics.drawable.BitmapDrawable) {
-                        adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, drawable.bitmap)
+            // Save to cache after Coil finishes (delayed to give decoding time)
+            icon.postDelayed({
+                val drawable = icon.drawable
+                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                    val bmp = drawable.bitmap
+                    if (bmp.width > 64 && bmp.height > 64) {
+                        adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bmp)
                     }
-                    return true
                 }
-            })
+            }, 1000)
             return disposable
         }
 
