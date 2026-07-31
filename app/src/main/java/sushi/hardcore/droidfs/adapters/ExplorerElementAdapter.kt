@@ -12,6 +12,7 @@ import coil3.ImageLoader
 import coil3.imageLoader
 import coil3.load
 import coil3.request.Disposable
+import coil3.request.ImageRequest
 import sushi.hardcore.droidfs.FileTypes
 import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.explorers.ExplorerElement
