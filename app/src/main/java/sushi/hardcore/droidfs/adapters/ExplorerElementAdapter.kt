@@ -120,8 +120,10 @@ class ExplorerElementAdapter(
 
         private fun setThumbnailOrDefaultIcon(fullPath: String, defaultIconId: Int, placeholder: Image?): Disposable {
             val adapter = (bindingAdapter as ExplorerElementAdapter?)!!
+            // Coil/Okio may interpret '#' as a URI fragment — encode it to avoid path truncation
+            val safePath = fullPath.replace("#", "%23")
             return if (adapter.loadThumbnails && adapter.thumbnailsLoader != null) {
-                icon.load(fullPath, adapter.thumbnailsLoader!!) {
+                icon.load(safePath, adapter.thumbnailsLoader!!) {
                     ThumbnailLoaderConfig.applyVideoConfig(this)
                     placeholder(placeholder)
                 }
