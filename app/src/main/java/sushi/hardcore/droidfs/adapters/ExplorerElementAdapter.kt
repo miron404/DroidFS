@@ -118,13 +118,14 @@ class ExplorerElementAdapter(
             thumbnailLoadingTask?.dispose()
         }
 
-        private fun setThumbnailOrDefaultIcon(fullPath: String, defaultIconId: Int, placeholder: Image?): Disposable {
+        private fun setThumbnailOrDefaultIcon(fullPath: String, stat: Stat, defaultIconId: Int, placeholder: Image?): Disposable {
             val adapter = (bindingAdapter as ExplorerElementAdapter?)!!
             // Coil/Okio may interpret '#' as a URI fragment — encode it to avoid path truncation
             val safePath = fullPath.replace("#", "%23")
             return if (adapter.loadThumbnails && adapter.thumbnailsLoader != null) {
                 icon.load(safePath, adapter.thumbnailsLoader!!) {
                     ThumbnailLoaderConfig.applyVideoConfig(this)
+                    diskCacheKey(ThumbnailLoaderConfig.cacheKey(fullPath, stat.size, stat.mTime))
                     placeholder(placeholder)
                 }
             } else {
@@ -137,10 +138,10 @@ class ExplorerElementAdapter(
             val adapter = bindingAdapter as ExplorerElementAdapter
             thumbnailLoadingTask = when {
                 FileTypes.isImage(explorerElement.name) -> {
-                    setThumbnailOrDefaultIcon(explorerElement.fullPath, R.drawable.icon_file_image, adapter.iconImage)
+                    setThumbnailOrDefaultIcon(explorerElement.fullPath, explorerElement.stat, R.drawable.icon_file_image, adapter.iconImage)
                 }
                 FileTypes.isVideo(explorerElement.name) -> {
-                    setThumbnailOrDefaultIcon(explorerElement.fullPath, R.drawable.icon_file_video, adapter.iconVideo)
+                    setThumbnailOrDefaultIcon(explorerElement.fullPath, explorerElement.stat, R.drawable.icon_file_video, adapter.iconVideo)
                 }
                 else -> icon.load(
                     when {
