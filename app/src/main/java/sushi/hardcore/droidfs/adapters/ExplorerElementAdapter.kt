@@ -13,6 +13,8 @@ import coil3.imageLoader
 import coil3.load
 import coil3.request.Disposable
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import sushi.hardcore.droidfs.FileTypes
 import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.explorers.ExplorerElement
@@ -131,22 +133,19 @@ class ExplorerElementAdapter(
             if (cached != null) {
                 return icon.load(cached, adapter.activity.imageLoader) { placeholder(placeholder) }
             }
-            // Cache miss — load through Coil, then save result for next time
-            val disposable = icon.load(safePath, adapter.thumbnailsLoader!!) {
+            // Cache miss — load through Coil, save result to cache via listener
+            return icon.load(safePath, adapter.thumbnailsLoader!!) {
                 ThumbnailLoaderConfig.applyVideoConfig(this)
                 placeholder(placeholder)
-            }
-            // Save to cache after Coil finishes (delayed to give decoding time)
-            icon.postDelayed({
-                val drawable = icon.drawable
-                if (drawable is android.graphics.drawable.BitmapDrawable) {
-                    val bmp = drawable.bitmap
-                    if (bmp.width > 64 && bmp.height > 64) {
-                        adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bmp)
+                listener(
+                    onSuccess = { _, result ->
+                        val bmp = result.image.toBitmap()
+                        if (bmp.width > 64 && bmp.height > 64) {
+                            adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bmp)
+                        }
                     }
-                }
-            }, 1000)
-            return disposable
+                )
+            }
         }
 
         override fun bind(explorerElement: ExplorerElement, position: Int, isSelected: Boolean) {
