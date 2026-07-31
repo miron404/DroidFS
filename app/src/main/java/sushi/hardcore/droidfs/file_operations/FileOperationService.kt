@@ -17,7 +17,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.provider.DocumentsContract
-import android.provider.OpenableColumns
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -489,7 +488,7 @@ class FileOperationService : Service() {
                 var mtime: Long = -1
                 contentResolver.query(uris[i], null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val idx = cursor.getColumnIndex(OpenableColumns.LAST_MODIFIED)
+                        val idx = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
                         if (idx >= 0) {
                             mtime = cursor.getLong(idx)
                         }
