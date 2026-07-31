@@ -178,7 +178,20 @@ class PlainVolume(
         }
     }
 
-    // ── Path helpers ──────────────────────────────────────────────────
+    // ── Window read buffer ────────────────────────────────────────────
+    // Caches a sliding 512KB window per read-handle. On read, if the
+    // requested range fits entirely in the window, data is copied from
+    // buffer (zero syscalls). On miss, the window is refilled from disk
+    // in one large FileChannel.read() — much cheaper than many small reads.
+    
+    private class ReadBuf {
+        var channel: FileChannel? = null       // set once from RAF
+        var windowStart: Long = -1
+        var windowLen: Int = 0
+        val buf: ByteArray = ByteArray(512 * 1024)
+    }
+
+    private val readBufs = ConcurrentHashMap<Long, ReadBuf>()
 
     private fun getRealPath(volumePath: String): String {
         return if (volumePath == "/") rootPath
@@ -195,6 +208,7 @@ class PlainVolume(
             val raf = RandomAccessFile(getRealPath(path), "r")
             val handle = newHandle()
             volumeFileHandles[handle] = raf
+            readBufs[handle] = ReadBuf().also { it.channel = raf.channel }
             handle
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open file for read: $path: ${e.message}")
@@ -218,6 +232,11 @@ class PlainVolume(
     }
 
     override fun read(fileHandle: Long, fileOffset: Long, buffer: ByteArray, dstOffset: Long, length: Long): Int {
+        val rb = readBufs[fileHandle]
+        if (rb != null) {
+            return readBuffered(rb, buffer, dstOffset.toInt(), fileOffset, length.toInt())
+        }
+        // Write-mode handle — fallback to direct positional read
         val raf = volumeFileHandles[fileHandle] ?: return -1
         return try {
             val toRead = minOf(length, (buffer.size - dstOffset).toLong()).toInt()
@@ -228,6 +247,39 @@ class PlainVolume(
         } catch (e: Exception) {
             Log.e(TAG, "Read failed: ${e.message}")
             -1
+        }
+    }
+
+    /**
+     * Window-buffered read. If the request fits entirely in the current window,
+     * copy from buffer (fast). Otherwise refill the window from disk with one
+     * large [FileChannel.read] and then serve from it.
+     */
+    private fun readBuffered(rb: ReadBuf, dst: ByteArray, dstOff: Int, offset: Long, len: Int): Int {
+        try {
+            // Does the request fit entirely in the current window?
+            if (rb.windowStart == -1L ||
+                offset < rb.windowStart ||
+                offset + len > rb.windowStart + rb.windowLen) {
+                // Miss — refill window
+                rb.windowStart = offset
+                val bb = ByteBuffer.wrap(rb.buf)
+                val n = rb.channel!!.read(bb, offset)
+                if (n <= 0) {
+                    rb.windowLen = 0
+                    return if (n < 0) -1 else 0
+                }
+                rb.windowLen = n
+            }
+            // Serve from window
+            val srcOff = (offset - rb.windowStart).toInt()
+            val toCopy = minOf(len, rb.windowLen - srcOff)
+            if (toCopy <= 0) return -1
+            System.arraycopy(rb.buf, srcOff, dst, dstOff, toCopy)
+            return toCopy
+        } catch (e: Exception) {
+            Log.e(TAG, "Read(buffered) failed: ${e.message}")
+            return -1
         }
     }
 
@@ -246,6 +298,7 @@ class PlainVolume(
     }
 
     override fun closeFile(fileHandle: Long): Boolean {
+        readBufs.remove(fileHandle)
         val raf = volumeFileHandles.remove(fileHandle) ?: return false
         return try {
             raf.close()
@@ -336,6 +389,7 @@ class PlainVolume(
     }
 
     override fun close() {
+        readBufs.clear()
         volumeFileHandles.values.forEach { try { it.close() } catch (_: Exception) {} }
         volumeFileHandles.clear()
     }
