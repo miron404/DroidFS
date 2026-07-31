@@ -244,6 +244,8 @@ class PlainVolume(
     override fun openFileWriteMode(path: String): Long {
         return try {
             val realPath = getRealPath(path)
+            // Prevent writing to the volume config file
+            if (File(realPath).name == CONFIG_FILE_NAME) return -1L
             // Ensure parent directory exists
             File(realPath).parentFile?.mkdirs()
             val file = RandomAccessFile(realPath, "rw")
@@ -296,6 +298,8 @@ class PlainVolume(
     override fun truncate(path: String, size: Long): Boolean {
         return try {
             val realPath = getRealPath(path)
+            // Prevent truncation of the volume config file
+            if (File(realPath).name == CONFIG_FILE_NAME) return false
             val raf = RandomAccessFile(realPath, "rw")
             raf.setLength(size)
             raf.close()
@@ -309,6 +313,8 @@ class PlainVolume(
     override fun deleteFile(path: String): Boolean {
         return try {
             val realPath = getRealPath(path)
+            // Prevent deletion of the volume config file
+            if (File(realPath).name == CONFIG_FILE_NAME) return false
             File(realPath).delete()
         } catch (e: Exception) {
             false
@@ -324,12 +330,9 @@ class PlainVolume(
             val files = dir.listFiles() ?: return null
             val result = mutableListOf<ExplorerElement>()
 
-            // Add parent folder entry if not at root
-            if (path != "/") {
-                result.add(ExplorerElement.new("..", Stat.PARENT_FOLDER_TYPE, -1, -1, path))
-            }
-
             for (file in files) {
+                // Hide the volume config file from the user
+                if (file.name == CONFIG_FILE_NAME) continue
                 val stat = fileToStat(file)
                 if (stat != null) {
                     result.add(ExplorerElement.new(
@@ -394,6 +397,8 @@ class PlainVolume(
         return try {
             val realSrc = getRealPath(srcPath)
             val realDst = getRealPath(dstPath)
+            // Prevent renaming of the volume config file
+            if (File(realSrc).name == CONFIG_FILE_NAME || File(realDst).name == CONFIG_FILE_NAME) return false
             File(realSrc).renameTo(File(realDst))
         } catch (e: Exception) {
             false
