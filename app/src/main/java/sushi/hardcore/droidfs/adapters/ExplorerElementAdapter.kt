@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
+import coil3.BitmapImage
 import coil3.Image
 import coil3.ImageLoader
 import coil3.imageLoader
@@ -139,7 +140,7 @@ class ExplorerElementAdapter(
                 placeholder(placeholder)
                 target(
                     onSuccess = { result ->
-                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        val bitmap = (result.image as? BitmapImage)?.bitmap
                         if (bitmap != null) {
                             adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bitmap)
                         }
