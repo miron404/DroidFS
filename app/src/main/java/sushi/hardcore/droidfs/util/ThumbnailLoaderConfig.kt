@@ -12,11 +12,12 @@ import sushi.hardcore.droidfs.filesystems.EncryptedFileReaderFileSystem
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 import java.io.File
 
+@OptIn(ExperimentalCoilApi::class)
 object ThumbnailLoaderConfig {
     fun imageLoader(context: Context, encryptedVolume: EncryptedVolume): ImageLoader {
         val cacheDir = File(context.cacheDir, "thumbnails")
         return ImageLoader.Builder(context)
-            .diskCache { DiskCache.Builder().directory(cacheDir).build() }
+            .diskCache(DiskCache.Builder().directory(cacheDir).build())
             .fileSystem(EncryptedFileReaderFileSystem(encryptedVolume))
             .components {
                 add(VideoFrameDecoder.Factory())
@@ -33,3 +34,4 @@ object ThumbnailLoaderConfig {
         return "$fullPath|$size|$mtime"
     }
 }
+
