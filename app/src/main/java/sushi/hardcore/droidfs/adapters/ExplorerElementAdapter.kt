@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import coil3.Image
 import coil3.ImageLoader
-import coil3.asBitmap
 import coil3.imageLoader
 import coil3.load
 import coil3.request.Disposable
@@ -124,28 +123,30 @@ class ExplorerElementAdapter(
         private fun setThumbnailOrDefaultIcon(fullPath: String, stat: Stat, defaultIconId: Int, placeholder: Image?): Disposable {
             val adapter = (bindingAdapter as ExplorerElementAdapter?)!!
             val safePath = fullPath.replace("#", "%23")
-            if (!adapter.loadThumbnails || adapter.thumbnailsLoader == null) {
-                return icon.load(defaultIconId)
-            }
-
-            // Cache hit — load directly from cached file (instant, no decoding)
-            val cachedFile = adapter.thumbnailCache.get(fullPath, stat.size, stat.mTime)
-            if (cachedFile != null) {
-                return icon.load(cachedFile) { placeholder(placeholder) }
-            }
-
-            // Cache miss — load through Coil, then save to cache
-            return icon.load(safePath, adapter.thumbnailsLoader!!) {
-                ThumbnailLoaderConfig.applyVideoConfig(this)
-                placeholder(placeholder)
-                target(
-                    onSuccess = { result ->
-                        val bitmap = result.asBitmap()
-                        if (bitmap != null) {
-                            adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bitmap)
-                        }
+            return if (adapter.loadThumbnails && adapter.thumbnailsLoader != null) {
+                // Cache hit — load instantly from cached JPEG (no decoding)
+                val cached = adapter.thumbnailCache.get(fullPath, stat.size, stat.mTime)
+                if (cached != null) {
+                    icon.load(cached) { placeholder(placeholder) }
+                } else {
+                    icon.load(safePath, adapter.thumbnailsLoader!!) {
+                        ThumbnailLoaderConfig.applyVideoConfig(this)
+                        placeholder(placeholder)
                     }
-                )
+                    // After Coil sets the drawable, save it to cache for next time
+                    icon.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+                        override fun onPreDraw(): Boolean {
+                            icon.viewTreeObserver.removeOnPreDrawListener(this)
+                            val drawable = icon.drawable
+                            if (drawable is android.graphics.drawable.BitmapDrawable) {
+                                adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, drawable.bitmap)
+                            }
+                            return true
+                        }
+                    })
+                }
+            } else {
+                icon.load(defaultIconId)
             }
         }
 
