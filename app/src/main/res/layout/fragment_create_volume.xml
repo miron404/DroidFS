@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_vertical">
 
     <TextView
+        android:id="@+id/text_volume_type_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/volume_type_label"
@@ -69,13 +71,26 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <TextView
+        android:id="@+id/text_plain_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/plain_volume_details"
+        android:layout_marginHorizontal="@dimen/volume_operation_horizontal_gap"
+        android:layout_marginVertical="@dimen/volume_operation_vertical_gap"
+        android:visibility="gone"
+        android:textColor="?android:attr/textColorSecondary"
+        tools:visibility="visible" />
+
     <RelativeLayout
+        android:id="@+id/encryption_cipher_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/volume_operation_horizontal_gap"
         android:layout_marginVertical="@dimen/volume_operation_vertical_gap">
 
         <TextView
+            android:id="@+id/text_encryption_cipher_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/encryption_cipher_label"

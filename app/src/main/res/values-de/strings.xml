@@ -231,10 +231,8 @@
     <string name="pin_passwords_title">Numerische Tastaturbelegung</string>
     <string name="pin_passwords_summary">Numerische Tastaturbelegung bei der Eingabe von Volume-Passwörtern verwenden</string>
     <string name="volume_type_label">Lautstärketyp:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">Die Unterstützung von Gocryptfs wurde deaktiviert</string>
-    <string name="cryfs_disabled">CryFS-Unterstützung wurde deaktiviert</string>
+    <string name="plain_volume">Einfaches Volume (keine Verschlüsselung)</string>
+    <string name="volume_type_not_supported">Dieser Volume-Typ wird nicht unterstützt</string>
     <string name="file_op_delete_msg">Löschen von Dateien…</string>
     <string name="volume_type">(%s)</string>
     <string name="volume_type_read_only">(%s, schreibgeschützt)</string>

@@ -12,9 +12,8 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import sushi.hardcore.droidfs.databinding.ActivityChangePasswordBinding
-import sushi.hardcore.droidfs.filesystems.CryfsVolume
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
-import sushi.hardcore.droidfs.filesystems.GocryptfsVolume
+import sushi.hardcore.droidfs.filesystems.PlainVolume
 import sushi.hardcore.droidfs.util.IntentUtils
 import sushi.hardcore.droidfs.util.ObjRef
 import sushi.hardcore.droidfs.util.UIUtils
@@ -142,24 +141,13 @@ class ChangePasswordActivity: BaseActivity() {
         }
         object : LoadingTask<Boolean>(this, R.string.loading_msg_change_password) {
             override suspend fun doTask(): Boolean {
-                val success = if (volume.type == EncryptedVolume.GOCRYPTFS_VOLUME_TYPE) {
-                    GocryptfsVolume.changePassword(
-                        volume.getFullPath(filesDir.path),
-                        currentPassword,
-                        givenHash,
-                        newPassword,
-                        returnedHash?.apply { value = ByteArray(GocryptfsVolume.KeyLen) }?.value
-                    )
-                } else {
-                    CryfsVolume.changePassword(
-                        volume.getFullPath(filesDir.path),
-                        filesDir.path,
-                        currentPassword,
-                        givenHash,
-                        newPassword,
-                        returnedHash
-                    )
-                }
+                val success = PlainVolume.changePassword(
+                    volume.getFullPath(filesDir.path),
+                    currentPassword,
+                    givenHash,
+                    newPassword,
+                    returnedHash?.apply { value = ByteArray(PlainVolume.KEY_LEN) }?.value
+                )
                 if (success) {
                     if (volumeDatabase.isHashSaved(volume)) {
                         volumeDatabase.removeHash(volume)

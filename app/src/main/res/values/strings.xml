@@ -134,7 +134,7 @@
     <string name="image_saved_successfully">Image changes successfully saved.</string>
     <string name="bitmap_compress_failed">Failed to compress the bitmap.</string>
     <string name="file_write_failed">Failed to write the file.</string>
-    <string name="error_not_a_volume">Encrypted volume not recognized. Please check the selected path.</string>
+    <string name="error_not_a_volume">Volume not recognized. Please check the selected path.</string>
     <string name="version">Version</string>
     <string name="error_cipher_null">Error cipher is null</string>
     <string name="key_permanently_invalidated_exception">KeyPermanentlyInvalidatedException</string>
@@ -231,10 +231,8 @@
     <string name="pin_passwords_title">Numeric keypad layout</string>
     <string name="pin_passwords_summary">Use a numeric keypad layout when entering volume passwords</string>
     <string name="volume_type_label">Volume type:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">Gocryptfs support has been disabled</string>
-    <string name="cryfs_disabled">CryFS support has been disabled</string>
+    <string name="plain_volume">Plain volume (no encryption)</string>
+    <string name="volume_type_not_supported">This volume type is not supported</string>
     <string name="file_op_delete_msg">Deleting files…</string>
     <string name="volume_type">(%s)</string>
     <string name="volume_type_read_only">(%s, read-only)</string>
@@ -284,8 +282,7 @@
     <string name="usf_background_summary">Don\'t lock volumes when the app goes in background</string>
     <string name="usf_keep_open">Keep volumes open</string>
     <string name="usf_keep_open_summary">Maintain the app always running in the background to keep volumes open</string>
-    <string name="gocryptfs_details">Fast, but doesn\'t hide file sizes and directory structure</string>
-    <string name="cryfs_details">Slower, but protects metadata and prevents replacement attacks</string>
+    <string name="plain_volume_details">Files are stored without encryption. The password protects only access through this app.</string>
     <string name="or">or</string>
     <string name="enter_volume_path">Enter volume path</string>
     <string name="more_options">More options</string>

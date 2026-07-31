@@ -2,9 +2,8 @@ package sushi.hardcore.droidfs
 
 import android.os.Parcel
 import android.os.Parcelable
-import sushi.hardcore.droidfs.filesystems.CryfsVolume
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
-import sushi.hardcore.droidfs.filesystems.GocryptfsVolume
+import sushi.hardcore.droidfs.filesystems.PlainVolume
 import sushi.hardcore.droidfs.util.PathUtils
 import java.io.File
 import java.io.FileInputStream
@@ -40,8 +39,7 @@ class VolumeData(
             return false
         }
         val configFile = when (type) {
-            EncryptedVolume.GOCRYPTFS_VOLUME_TYPE -> PathUtils.pathJoin(volumePath, GocryptfsVolume.CONFIG_FILE_NAME)
-            EncryptedVolume.CRYFS_VOLUME_TYPE -> PathUtils.pathJoin(volumePath, CryfsVolume.CONFIG_FILE_NAME)
+            EncryptedVolume.PLAIN_VOLUME_TYPE -> PathUtils.pathJoin(volumePath, PlainVolume.CONFIG_FILE_NAME)
             else -> return false
         }
         var success = true

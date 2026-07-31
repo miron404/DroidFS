@@ -78,10 +78,10 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion == 3) {
-            // Adding type column and set it to GOCRYPTFS_VOLUME_TYPE for all existing volumes
+            // Adding type column and set it to PLAIN_VOLUME_TYPE for all existing volumes
             db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COLUMN_TYPE BLOB;")
             db.update(TABLE_NAME, ContentValues().apply {
-                put(COLUMN_TYPE, byteArrayOf(EncryptedVolume.GOCRYPTFS_VOLUME_TYPE))
+                put(COLUMN_TYPE, byteArrayOf(EncryptedVolume.PLAIN_VOLUME_TYPE))
             }, null, null)
 
             // Moving registered hidden volumes to the "volumes" directory
@@ -115,7 +115,7 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
         // Moving unregistered hidden volumes to the "volumes" directory
         File(context.filesDir.path).listFiles()?.let {
             for (i in it) {
-                if (i.isDirectory && i.name != Constants.CRYFS_LOCAL_STATE_DIR && i.name != VolumeData.VOLUMES_DIRECTORY) {
+                if (i.isDirectory && i.name != VolumeData.VOLUMES_DIRECTORY) {
                     if (EncryptedVolume.getVolumeType(i.path) != (-1).toByte()) {
                         if (!i.renameTo(getNewVolumePath(i.name))) {
                             Log.e(TAG, "Failed to move "+i.name)

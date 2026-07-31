@@ -229,10 +229,8 @@
     <string name="pin_passwords_title">نظام مفاتيح لوحة أرقام</string>
     <string name="pin_passwords_summary">استخدام عرض لوحة أرقام عند القيام بادخال كلمات مرور المجلدات المشفرة</string>
     <string name="volume_type_label">نوع المجلد المشفر:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">Gocryptfs لقد تم تعطيل دعم</string>
-    <string name="cryfs_disabled">CryFS لقد تم تعطيل دعم</string>
+    <string name="plain_volume">مجلد عادي (بدون تشفير)</string>
+    <string name="volume_type_not_supported">نوع المجلد هذا غير مدعوم</string>
     <string name="file_op_delete_msg">جاري حذف الملفات…</string>
     <string name="io_error">خطأ في الإدخال والإخراج.</string>
     <string name="use_fingerprint">استخدم بصمة الأصبع بدلا من كلمة المرور الحالية</string>

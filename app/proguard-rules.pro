@@ -14,10 +14,6 @@
     void writePacket(byte[]);
     void seek(long);
 }
-# Keep all JNI native methods and their classes
--keepclasseswithmembernames class * {
-    native <methods>;
-}
 # Required for Parcelable CREATOR fields to not be removed by R8
 -keepclassmembers class * implements android.os.Parcelable {
     static ** CREATOR;

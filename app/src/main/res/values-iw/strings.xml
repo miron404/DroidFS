@@ -232,10 +232,8 @@
     <string name="pin_passwords_title">פריסת מקלדת מספרים</string>
     <string name="pin_passwords_summary">שימוש בפריסת מקלדת מספרים בעת הזנת סיסמאות אמצעי אחסון</string>
     <string name="volume_type_label">סוג אמצעי אחסון:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">תמיכת Gocryptfs הושבתה</string>
-    <string name="cryfs_disabled">תמיכת CryFS הושבתה</string>
+    <string name="plain_volume">אמצעי אחסון פשוט (ללא הצפנה)</string>
+    <string name="volume_type_not_supported">סוג אמצעי אחסון זה אינו נתמך</string>
     <string name="file_op_delete_msg">מוחק קבצים…</string>
     <string name="volume_type">(%s)</string>
     <string name="volume_type_read_only">(%s, קריאה בלבד)</string>

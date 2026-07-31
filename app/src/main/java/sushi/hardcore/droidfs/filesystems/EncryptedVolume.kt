@@ -35,8 +35,7 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
     }
 
     companion object {
-        const val GOCRYPTFS_VOLUME_TYPE: Byte = 0
-        const val CRYFS_VOLUME_TYPE: Byte = 1
+        const val PLAIN_VOLUME_TYPE: Byte = 0
 
         /**
          * Get the type of a volume.
@@ -44,10 +43,8 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
          * @return The volume type or -1 if the path is not recognized as a volume
          */
         fun getVolumeType(path: String): Byte {
-            return if (File(path, GocryptfsVolume.CONFIG_FILE_NAME).isFile) {
-                GOCRYPTFS_VOLUME_TYPE
-            } else if (File(path, CryfsVolume.CONFIG_FILE_NAME).isFile) {
-                CRYFS_VOLUME_TYPE
+            return if (File(path, PlainVolume.CONFIG_FILE_NAME).isFile) {
+                PLAIN_VOLUME_TYPE
             } else {
                 -1
             }
@@ -61,18 +58,15 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
             returnedHash: ObjRef<ByteArray?>?
         ): InitResult {
             return when (volume.type) {
-                GOCRYPTFS_VOLUME_TYPE -> {
-                    GocryptfsVolume.init(
+                PLAIN_VOLUME_TYPE -> {
+                    PlainVolume.init(
                         volume.getFullPath(filesDir),
                         password,
                         givenHash,
                         returnedHash?.apply {
-                            value = ByteArray(GocryptfsVolume.KeyLen)
+                            value = ByteArray(PlainVolume.KEY_LEN)
                         }?.value
                     )
-                }
-                CRYFS_VOLUME_TYPE -> {
-                    CryfsVolume.init(volume.getFullPath(filesDir), CryfsVolume.getLocalStateDir(filesDir), password, givenHash, returnedHash)
                 }
                 else -> throw invalidVolumeType()
             }
@@ -88,7 +82,7 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
     abstract fun read(fileHandle: Long, fileOffset: Long, buffer: ByteArray, dstOffset: Long, length: Long): Int
     abstract fun write(fileHandle: Long, fileOffset: Long, buffer: ByteArray, srcOffset: Long, length: Long): Int
     abstract fun closeFile(fileHandle: Long): Boolean
-    // Due to gocryptfs internals, truncate requires the file to be open before it is called
+    // For PlainVolume, truncate can work without the file being open
     abstract fun truncate(path: String, size: Long): Boolean
     abstract fun deleteFile(path: String): Boolean
     abstract fun readDir(path: String): MutableList<ExplorerElement>?

@@ -231,10 +231,8 @@
     <string name="pin_passwords_title">Sayısal tuş takımı düzeni</string>
     <string name="pin_passwords_summary">Birim parolalarını girerken sayısal tuş takımı düzeni kullanın</string>
     <string name="volume_type_label">Birim türü:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">Gocryptfs desteği devre dışı bırakıldı</string>
-    <string name="cryfs_disabled">CryFS desteği devre dışı bırakıldı</string>
+    <string name="plain_volume">Basit birim (şifrelemesiz)</string>
+    <string name="volume_type_not_supported">Bu birim türü desteklenmiyor</string>
     <string name="file_op_delete_msg">Dosyalar silindi…</string>
     <string name="volume_type">(%s)</string>
     <string name="volume_type_read_only">(%s, salt-okunur)</string>

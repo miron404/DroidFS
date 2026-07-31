@@ -14,7 +14,7 @@ import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.VolumeData
 import sushi.hardcore.droidfs.VolumeDatabase
 import sushi.hardcore.droidfs.VolumeManager
-import sushi.hardcore.droidfs.filesystems.EncryptedVolume
+
 
 class VolumeAdapter(
     private val context: Context,
@@ -107,11 +107,7 @@ class VolumeAdapter(
                 } else {
                     R.string.volume_type_inaccessible
                 },
-                context.getString(if (volume.type == EncryptedVolume.GOCRYPTFS_VOLUME_TYPE) {
-                    R.string.gocryptfs
-                } else {
-                    R.string.cryfs
-                })
+                context.getString(R.string.plain_volume)
             )
             setSelectable(itemView, layoutPosition)
         }

@@ -232,10 +232,8 @@
     <string name="pin_passwords_title">数字键盘布局</string>
     <string name="pin_passwords_summary">输入卷的密码时使用纯数字键盘</string>
     <string name="volume_type_label">卷的类型:</string>
-    <string name="gocryptfs">Gocryptfs</string>
-    <string name="cryfs">CryFS</string>
-    <string name="gocryptfs_disabled">Gocrytfs支持已关闭</string>
-    <string name="cryfs_disabled">CryFS支持已关闭</string>
+    <string name="plain_volume">普通卷（无加密）</string>
+    <string name="volume_type_not_supported">不支持此卷类型</string>
     <string name="file_op_delete_msg">正在删除文件…</string>
     <string name="volume_type">(%s)</string>
     <string name="volume_type_read_only">(%s, 只读)</string>

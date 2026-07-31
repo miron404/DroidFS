@@ -51,11 +51,8 @@ class VolumeOpener(
     fun openVolume(volume: VolumeData, isVolumeSaved: Boolean, callbacks: VolumeOpenerCallbacks) {
         val volumeId = volumeManager.getVolumeId(volume)
         if (volumeId == null) {
-            if (volume.type == EncryptedVolume.GOCRYPTFS_VOLUME_TYPE && BuildConfig.GOCRYPTFS_DISABLED) {
-                Toast.makeText(activity, R.string.gocryptfs_disabled, Toast.LENGTH_SHORT).show()
-                return
-            } else if (volume.type == EncryptedVolume.CRYFS_VOLUME_TYPE && BuildConfig.CRYFS_DISABLED) {
-                Toast.makeText(activity, R.string.cryfs_disabled, Toast.LENGTH_SHORT).show()
+            if (volume.type != EncryptedVolume.PLAIN_VOLUME_TYPE) {
+                Toast.makeText(activity, R.string.volume_type_not_supported, Toast.LENGTH_SHORT).show()
                 return
             }
             var askForPassword = true

@@ -3,20 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 apply plugin: 'com.android.application'
 
-if (hasProperty("disableCryFS")) {
-    ext.disableCryFS = getProperty("disableCryFS")
-} else {
-    ext.disableCryFS = false
-}
-
-if (hasProperty("disableGocryptfs")) {
-    ext.disableGocryptfs = getProperty("disableGocryptfs")
-} else {
-    ext.disableGocryptfs = false
-}
-
-ext.abiCodes  = [ "x86": 1, "x86_64": 2, "armeabi-v7a": 3, "arm64-v8a": 4]
-
 android {
     compileSdk = 37
     ndkVersion '28.2.13676358'
@@ -40,29 +26,8 @@ android {
         versionCode 37
         versionName "2.2.0"
 
-        buildConfigField "boolean", "CRYFS_DISABLED", "${project.ext.disableCryFS}"
-        buildConfigField "boolean", "GOCRYPTFS_DISABLED", "${project.ext.disableGocryptfs}"
-
-        splits {
-            abi {
-                enable true
-                reset() // fix unknown bug (https://ru.stackoverflow.com/questions/1557805/abis-armeabi-mips-mips64-riscv64-are-not-supported-for-platform)
-                if (project.hasProperty("abi")) {
-                    include project.getProperty("abi")
-                } else {
-                    abiCodes.keySet().each { abi -> include abi }
-                    universalApk !project.hasProperty("nouniversal")
-                }
-            }
-        }
-
         externalNativeBuild.cmake {
-            if (project.ext.disableGocryptfs) {
-                arguments "-DGOCRYPTFS=OFF"
-            }
-            if (project.ext.disableCryFS) {
-                arguments "-DCRYFS=OFF"
-            }
+            // No additional arguments needed
         }
     }
 
@@ -117,12 +82,7 @@ androidComponents {
             new ResValue(variant.outputs.first().versionName.get(), "")
         )
         variant.outputs.each { output ->
-            def abiFilter = output.filters.find { it.filterType.name() == 'ABI' }
-            def abi = abiFilter?.identifier
-            def abiCode = abi ? (project.ext.abiCodes[abi] ?: 0) : 0
-            def baseVersionCode = output.versionCode.get()
-            output.versionCode.set(baseVersionCode * 10 + abiCode)
-            output.outputFileName.set("DroidFS-v${android.defaultConfig.versionName}-${variant.name}-${abi ?: 'universal'}.apk")
+            output.outputFileName.set("DroidFS-v${android.defaultConfig.versionName}-${variant.name}.apk")
         }
     }
 }

@@ -224,8 +224,8 @@
     <string name="pin_passwords_title">Цифровая клавиатура</string>
     <string name="pin_passwords_summary">Использовать цифровую раскладку клавиатуры при вводе паролей томов</string>
     <string name="volume_type_label">Тип тома:</string>
-    <string name="gocryptfs_disabled">Поддержка Gocryptfs отключена</string>
-    <string name="cryfs_disabled">Поддержка CryFS отключена</string>
+    <string name="plain_volume">Обычный том (без шифрования)</string>
+    <string name="volume_type_not_supported">Этот тип тома не поддерживается</string>
     <string name="file_op_delete_msg">Удаление файлов…</string>
     <string name="volume_type_read_only">(%s, только чтение)</string>
     <string name="volume_type_inaccessible">(%s, недоступен)</string>
@@ -273,8 +273,7 @@
     <string name="usf_background_summary">Не блокировать тома автоматически при работе приложения в фоновом режиме</string>
     <string name="usf_keep_open">Держать тома открытыми</string>
     <string name="usf_keep_open_summary">Поддерживать постоянную работу приложения в фоновом режиме, чтобы тома оставались открытыми</string>
-    <string name="gocryptfs_details">Быстрый, но не скрывает размеры файлов и структуру папок</string>
-    <string name="cryfs_details">Медленнее, но защищает метаданные и предотвращает атаки замещения</string>
+    <string name="plain_volume_details">Файлы хранятся без шифрования. Пароль защищает только доступ через это приложение.</string>
     <string name="or">или</string>
     <string name="enter_volume_path">Введите путь к тому</string>
 </resources>
