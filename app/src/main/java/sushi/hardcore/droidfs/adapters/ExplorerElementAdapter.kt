@@ -126,10 +126,10 @@ class ExplorerElementAdapter(
             if (!adapter.loadThumbnails || adapter.thumbnailsLoader == null) {
                 return icon.load(defaultIconId)
             }
-            // Cache hit — load instantly from cached JPEG (no decoding)
+            // Cache hit — load from real filesystem via default Coil loader
             val cached = adapter.thumbnailCache.get(fullPath, stat.size, stat.mTime)
             if (cached != null) {
-                return icon.load(cached) { placeholder(placeholder) }
+                return icon.load(cached, activity.imageLoader) { placeholder(placeholder) }
             }
             // Cache miss — load through Coil, then save to cache for next time
             val disposable = icon.load(safePath, adapter.thumbnailsLoader!!) {
