@@ -49,11 +49,14 @@ jobs:
             "platform-tools" \
             "build-tools;37.0.0" \
             "platforms;android-34" \
-            "ndk;28.2.13676358"
+            "ndk;28.2.13676358" \
+            "cmake;4.1.2"
 
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> $GITHUB_ENV
+          echo "CMAKE_HOME=$ANDROID_SDK_ROOT/cmake/4.1.2" >> $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmake/4.1.2/bin" >> $GITHUB_PATH
 
       - name: Build FFmpeg
         working-directory: app/ffmpeg
