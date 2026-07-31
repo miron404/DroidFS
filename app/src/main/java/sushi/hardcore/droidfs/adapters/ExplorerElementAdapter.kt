@@ -19,6 +19,7 @@ import sushi.hardcore.droidfs.explorers.ExplorerElement
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 import sushi.hardcore.droidfs.filesystems.Stat
 import sushi.hardcore.droidfs.util.PathUtils
+import sushi.hardcore.droidfs.util.ThumbnailCache
 import sushi.hardcore.droidfs.util.ThumbnailLoaderConfig
 import java.text.DateFormat
 import java.util.Locale
@@ -40,6 +41,7 @@ class ExplorerElementAdapter(
     var loadThumbnails = true
     private var iconImage: Image? = null
     private var iconVideo: Image? = null
+    private val thumbnailCache = ThumbnailCache(activity)
 
     init {
         if (encryptedVolume != null) {
@@ -120,16 +122,29 @@ class ExplorerElementAdapter(
 
         private fun setThumbnailOrDefaultIcon(fullPath: String, stat: Stat, defaultIconId: Int, placeholder: Image?): Disposable {
             val adapter = (bindingAdapter as ExplorerElementAdapter?)!!
-            // Coil/Okio may interpret '#' as a URI fragment — encode it to avoid path truncation
             val safePath = fullPath.replace("#", "%23")
-            return if (adapter.loadThumbnails && adapter.thumbnailsLoader != null) {
-                icon.load(safePath, adapter.thumbnailsLoader!!) {
-                    ThumbnailLoaderConfig.applyVideoConfig(this)
-                    diskCacheKey(ThumbnailLoaderConfig.cacheKey(fullPath, stat.size, stat.mTime))
-                    placeholder(placeholder)
-                }
-            } else {
-                icon.load(defaultIconId)
+            if (!adapter.loadThumbnails || adapter.thumbnailsLoader == null) {
+                return icon.load(defaultIconId)
+            }
+
+            // Cache hit — load directly from cached file (instant, no decoding)
+            val cachedFile = adapter.thumbnailCache.get(fullPath, stat.size, stat.mTime)
+            if (cachedFile != null) {
+                return icon.load(cachedFile) { placeholder(placeholder) }
+            }
+
+            // Cache miss — load through Coil, then save to cache
+            return icon.load(safePath, adapter.thumbnailsLoader!!) {
+                ThumbnailLoaderConfig.applyVideoConfig(this)
+                placeholder(placeholder)
+                target(
+                    onSuccess = { result ->
+                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        if (bitmap != null) {
+                            adapter.thumbnailCache.put(fullPath, stat.size, stat.mTime, bitmap)
+                        }
+                    }
+                )
             }
         }
 
