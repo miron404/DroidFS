@@ -10,5 +10,3 @@
 [submodule "app/ffmpeg/ffmpeg"]
 	path = app/ffmpeg/ffmpeg
 	url = https://git.ffmpeg.org/ffmpeg.git
-[submodule "app/libpdfviewer"]
-	url = https://github.com/hardcore-sushi/libpdfviewer.git
