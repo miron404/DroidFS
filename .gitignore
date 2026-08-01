@@ -16,3 +16,6 @@ local.properties
 *.o
 *.a
 *.so
+AI_CHECKPOINT_V2.md
+AI_CHECKPOINT.md
+*.txt
