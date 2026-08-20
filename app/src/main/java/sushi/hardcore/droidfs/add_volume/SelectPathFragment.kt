@@ -350,6 +350,13 @@ class SelectPathFragment: Fragment() {
                     .setMessage(R.string.error_not_a_volume)
                     .setPositiveButton(R.string.ok, null)
                     .show()
+            } else if (EncryptedVolume.isTypeDisabled(volumeType)) {
+                // Refuse here rather than letting the volume be added and fail on open.
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.error)
+                    .setMessage(EncryptedVolume.disabledMessageId(volumeType))
+                    .setPositiveButton(R.string.ok, null)
+                    .show()
             } else if (!File(volumePath).canWrite()) {
                 val dialog = MaterialAlertDialogBuilder(requireContext())
                     .setTitle(R.string.warning)

@@ -2,6 +2,7 @@ package sushi.hardcore.droidfs.filesystems
 
 import android.content.Context
 import android.net.Uri
+import sushi.hardcore.droidfs.BuildConfig
 import sushi.hardcore.droidfs.Constants
 import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.VolumeData
@@ -52,6 +53,24 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
             } else {
                 -1
             }
+        }
+
+        /**
+         * Whether support for this volume type was compiled out of this build.
+         *
+         * The native library backing a disabled type is not packaged, so touching it would throw
+         * UnsatisfiedLinkError. Every entry point that can reach a volume of an arbitrary type
+         * has to check this first.
+         */
+        fun isTypeDisabled(type: Byte) = when (type) {
+            GOCRYPTFS_VOLUME_TYPE -> BuildConfig.GOCRYPTFS_DISABLED
+            CRYFS_VOLUME_TYPE -> BuildConfig.CRYFS_DISABLED
+            else -> true
+        }
+
+        fun disabledMessageId(type: Byte) = when (type) {
+            GOCRYPTFS_VOLUME_TYPE -> R.string.gocryptfs_disabled
+            else -> R.string.cryfs_disabled
         }
 
         fun init(

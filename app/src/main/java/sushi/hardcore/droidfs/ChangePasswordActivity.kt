@@ -34,6 +34,13 @@ class ChangePasswordActivity: BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volume = IntentUtils.getParcelableExtra(intent, "volume")!!
+        if (EncryptedVolume.isTypeDisabled(volume.type)) {
+            // Reaching the native code of a filesystem left out of this build would throw
+            // UnsatisfiedLinkError, so bail out before anything touches it.
+            Toast.makeText(this, EncryptedVolume.disabledMessageId(volume.type), Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
         binding = ActivityChangePasswordBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(findViewById(R.id.toolbar))
