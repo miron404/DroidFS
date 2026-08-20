@@ -66,6 +66,13 @@ android {
         }
     }
 
+    // CI test build only: AGP 9's lint crashes on JDK 17 with
+    // NoSuchMethodError java.util.List.removeLast() (a Java 21 API).
+    // Not related to the MTE fix; skip lint so the APK still gets built.
+    lint {
+        checkReleaseBuilds false
+    }
+
     buildFeatures {
         viewBinding true
         buildConfig true
