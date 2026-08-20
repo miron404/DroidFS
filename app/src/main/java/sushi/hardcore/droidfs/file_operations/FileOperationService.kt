@@ -479,6 +479,19 @@ class FileOperationService : Service() {
         }
     }
 
+    /**
+     * Give an imported copy the modification time of the file it came from.
+     *
+     * Best effort: a source that reports no time, or a filesystem that cannot set one, simply
+     * leaves the copy stamped with the moment it was written.
+     */
+    private fun restoreMtime(encryptedVolume: EncryptedVolume, srcUri: Uri, dstPath: String) {
+        val mtime = DocumentFile.fromSingleUri(this, srcUri)?.lastModified() ?: 0
+        if (mtime > 0) {
+            encryptedVolume.setMtime(dstPath, mtime)
+        }
+    }
+
     private suspend fun importFilesFromUris(
         encryptedVolume: EncryptedVolume,
         volumeId: Int,
@@ -490,7 +503,9 @@ class FileOperationService : Service() {
         for (i in dstPaths.indices) {
             yield()
             try {
-                if (!encryptedVolume.importFile(this@FileOperationService, uris[i], dstPaths[i])) {
+                if (encryptedVolume.importFile(this@FileOperationService, uris[i], dstPaths[i])) {
+                    restoreMtime(encryptedVolume, uris[i], dstPaths[i])
+                } else {
                     failedIndex = i
                 }
             } catch (e: FileNotFoundException) {
@@ -526,14 +541,16 @@ class FileOperationService : Service() {
         dstFiles: ArrayList<String>,
         srcUris: ArrayList<Uri>,
         dstDirs: ArrayList<String>,
+        dstDirMtimes: ArrayList<Long>,
     ) {
         dstDirs.add(rootDstPath)
+        dstDirMtimes.add(rootSrcDir.lastModified())
         for (child in rootSrcDir.listFiles()) {
             yield()
             child.name?.let { name ->
                 val subPath = PathUtils.pathJoin(rootDstPath, name)
                 if (child.isDirectory) {
-                    recursiveMapDirectoryForImport(child, subPath, dstFiles, srcUris, dstDirs)
+                    recursiveMapDirectoryForImport(child, subPath, dstFiles, srcUris, dstDirs, dstDirMtimes)
                 } else if (child.isFile) {
                     srcUris.add(child.uri)
                     dstFiles.add(subPath)
@@ -554,7 +571,8 @@ class FileOperationService : Service() {
             var failedItem: String? = null
             val dstFiles = arrayListOf<String>()
             val dstDirs = arrayListOf<String>()
-            recursiveMapDirectoryForImport(rootSrcDir, rootDstPath, dstFiles, srcUris, dstDirs)
+            val dstDirMtimes = arrayListOf<Long>()
+            recursiveMapDirectoryForImport(rootSrcDir, rootDstPath, dstFiles, srcUris, dstDirs, dstDirMtimes)
             // create destination folders so the new files can use them
             for (dir in dstDirs) {
                 // if directory creation fails, check if it was already present
@@ -565,6 +583,14 @@ class FileOperationService : Service() {
             }
             if (failedItem == null) {
                 failedItem = importFilesFromUris(encryptedVolume, volumeId, dstFiles, srcUris, taskId)
+            }
+            if (failedItem == null) {
+                // Directory times go last: writing the files into them bumps the timestamps again.
+                for (i in dstDirs.indices) {
+                    if (dstDirMtimes[i] > 0) {
+                        encryptedVolume.setMtime(dstDirs[i], dstDirMtimes[i])
+                    }
+                }
             }
             failedItem
         }, srcUris)

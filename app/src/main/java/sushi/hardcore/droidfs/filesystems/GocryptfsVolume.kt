@@ -15,6 +15,7 @@ class GocryptfsVolume(private val sessionID: Int): EncryptedVolume() {
     private external fun native_read_file(sessionID: Int, handleID: Int, fileOffset: Long, buff: ByteArray, dstOffset: Long, length: Int): Int
     private external fun native_write_file(sessionID: Int, handleID: Int, fileOffset: Long, buff: ByteArray, srcOffset: Long, length: Int): Int
     private external fun native_truncate(sessionID: Int, path: String, offset: Long): Boolean
+    private external fun native_set_mtime(sessionID: Int, path: String, mtimeNanos: Long): Boolean
     private external fun native_close_file(sessionID: Int, handleID: Int)
     private external fun native_remove_file(sessionID: Int, file_path: String): Boolean
     private external fun native_mkdir(sessionID: Int, dir_path: String, mode: Int): Boolean
@@ -146,6 +147,10 @@ class GocryptfsVolume(private val sessionID: Int): EncryptedVolume() {
 
     override fun truncate(path: String, size: Long): Boolean {
         return native_truncate(sessionID, path, size)
+    }
+
+    override fun setMtime(path: String, mtimeMillis: Long): Boolean {
+        return native_set_mtime(sessionID, path, mtimeMillis * 1_000_000)
     }
 
     override fun deleteFile(path: String): Boolean {

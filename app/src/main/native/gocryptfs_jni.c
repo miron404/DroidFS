@@ -385,6 +385,23 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1truncate(JNIEnv 
     return result;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1set_1mtime(JNIEnv *env, jobject thiz,
+                                                                    jint sessionID,
+                                                                    jstring jpath,
+                                                                    jlong mtime_nanos) {
+    const char* path = (*env)->GetStringUTFChars(env, jpath, NULL);
+    if (path == NULL) {
+        return JNI_FALSE;
+    }
+    GoString go_path = {path, strlen(path)};
+
+    GoUint8 result = gcf_set_mtime(sessionID, go_path, (GoInt64) mtime_nanos);
+
+    (*env)->ReleaseStringUTFChars(env, jpath, path);
+    return result;
+}
+
 JNIEXPORT void JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1close_1file(JNIEnv *env, jobject thiz,
                                                                          jint sessionID,

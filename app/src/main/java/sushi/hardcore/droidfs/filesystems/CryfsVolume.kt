@@ -125,6 +125,10 @@ class CryfsVolume(private val fusePtr: Long): EncryptedVolume() {
         return nativeTruncate(fusePtr, path, size)
     }
 
+    // libcryfs exposes no way to set timestamps, so an imported file keeps the time it
+    // was written at.
+    override fun setMtime(path: String, mtimeMillis: Long) = false
+
     override fun closeFile(fileHandle: Long): Boolean {
         return nativeCloseFile(fusePtr, fileHandle)
     }

@@ -123,6 +123,14 @@ abstract class EncryptedVolume: Observable<EncryptedVolume.Observer>() {
     abstract fun closeFile(fileHandle: Long): Boolean
     // Due to gocryptfs internals, truncate requires the file to be open before it is called
     abstract fun truncate(path: String, size: Long): Boolean
+
+    /**
+     * Set the modification time of a file or directory, in milliseconds since the epoch.
+     *
+     * Returns false if the backend cannot do it, in which case the caller keeps whatever
+     * timestamp writing the file produced.
+     */
+    abstract fun setMtime(path: String, mtimeMillis: Long): Boolean
     abstract fun deleteFile(path: String): Boolean
     abstract fun readDir(path: String): MutableList<ExplorerElement>?
     abstract fun mkdir(path: String): Boolean
