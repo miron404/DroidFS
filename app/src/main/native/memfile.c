@@ -16,7 +16,11 @@ JNIEXPORT jint JNICALL
 Java_sushi_hardcore_droidfs_MemFile_00024Companion_createMemFile(JNIEnv *env, jobject thiz, jstring jname,
                                                   jlong size) {
     const char* name = (*env)->GetStringUTFChars(env, jname, NULL);
+    if (name == NULL) {
+        return -1;
+    }
     int fd = syscall(SYS_memfd_create, name, MFD_CLOEXEC);
+    (*env)->ReleaseStringUTFChars(env, jname, name);
     if (fd < 0) {
         log_err("memfd_create");
         return fd;

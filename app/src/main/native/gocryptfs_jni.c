@@ -15,7 +15,14 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_00024Companion_nativeCre
                                                                              jstring jcreator,
                                                                              jbyteArray jreturned_hash) {
     const char* root_cipher_dir = (*env)->GetStringUTFChars(env, jroot_cipher_dir, NULL);
+    if (root_cipher_dir == NULL) {
+        return -2;
+    }
     const char* creator = (*env)->GetStringUTFChars(env, jcreator, NULL);
+    if (creator == NULL) {
+        (*env)->ReleaseStringUTFChars(env, jroot_cipher_dir, root_cipher_dir);
+        return -2;
+    }
     GoString gofilename = {root_cipher_dir, strlen(root_cipher_dir)}, gocreator = {creator, strlen(creator)};
 
     const size_t password_len = (const size_t) (*env)->GetArrayLength(env, jpassword);
@@ -30,6 +37,12 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_00024Companion_nativeCre
     } else {
         returned_hash_len = KeyLen;
         go_returned_hash.data = malloc(KeyLen);
+        if (go_returned_hash.data == NULL) {
+            (*env)->ReleaseByteArrayElements(env, jpassword, password, 0);
+            (*env)->ReleaseStringUTFChars(env, jcreator, creator);
+            (*env)->ReleaseStringUTFChars(env, jroot_cipher_dir, root_cipher_dir);
+            return -2;
+        }
     }
     go_returned_hash.len = returned_hash_len;
     go_returned_hash.cap = returned_hash_len;
@@ -66,6 +79,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_00024Companion_nativeIni
                                                       jbyteArray jgiven_hash,
                                                       jbyteArray jreturned_hash) {
     const char* root_cipher_dir = (*env)->GetStringUTFChars(env, jroot_cipher_dir, NULL);
+    if (root_cipher_dir == NULL) {
+        return -1;
+    }
     GoString go_root_cipher_dir = {root_cipher_dir, strlen(root_cipher_dir)};
 
     size_t password_len;
@@ -130,6 +146,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_00024Companion_changePas
                                                                                jbyteArray jnew_password,
                                                                                jbyteArray jreturned_hash) {
     const char* root_cipher_dir = (*env)->GetStringUTFChars(env, jroot_cipher_dir, NULL);
+    if (root_cipher_dir == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_root_cipher_dir = {root_cipher_dir, strlen(root_cipher_dir)};
 
     size_t old_password_len;
@@ -195,8 +214,13 @@ JNIEXPORT jobject JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1list_1dir(JNIEnv *env, jobject thiz,
                                                           jint sessionID, jstring jplain_dir) {
     const char* plain_dir = (*env)->GetStringUTFChars(env, jplain_dir, NULL);
+    if (plain_dir == NULL) {
+        return NULL;
+    }
     const size_t plain_dir_len = strlen(plain_dir);
-    const char append_slash = plain_dir[plain_dir_len-1] != '/';
+    // Paths always come from the app and start with '/', but don't read plain_dir[-1]
+    // if that ever stops being true.
+    const char append_slash = plain_dir_len == 0 || plain_dir[plain_dir_len-1] != '/';
     GoString go_plain_dir = {plain_dir, plain_dir_len};
 
     struct gcf_list_dir_return elements = gcf_list_dir(sessionID, go_plain_dir);
@@ -216,6 +240,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1list_1dir(JNIEnv
             size_t nameLen = strlen(name);
 
             char* fullPath = malloc(sizeof(char) * (plain_dir_len + nameLen + 2));
+            if (fullPath == NULL) {
+                break;
+            }
             strcpy(fullPath, plain_dir);
             if (append_slash) {
                 strcat(fullPath, "/");
@@ -256,6 +283,9 @@ JNIEXPORT jobject JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1get_1attr(JNIEnv *env, jobject thiz,
                                                               jint sessionID, jstring jfile_path) {
     const char* file_path = (*env)->GetStringUTFChars(env, jfile_path, NULL);
+    if (file_path == NULL) {
+        return NULL;
+    }
     GoString go_file_path = {file_path, strlen(file_path)};
 
     struct gcf_get_attrs_return attrs = gcf_get_attrs(sessionID, go_file_path);
@@ -281,6 +311,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1open_1read_1mode
                                                                          jint sessionID,
                                                                          jstring jfile_path) {
     const char* file_path = (*env)->GetStringUTFChars(env, jfile_path, NULL);
+    if (file_path == NULL) {
+        return -1;
+    }
     GoString go_file_path = {file_path, strlen(file_path)};
 
     GoInt handleID = gcf_open_read_mode(sessionID, go_file_path);
@@ -296,6 +329,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1open_1write_1mod
                                                                           jstring jfile_path,
                                                                           jint mode) {
     const char* file_path = (*env)->GetStringUTFChars(env, jfile_path, NULL);
+    if (file_path == NULL) {
+        return -1;
+    }
     GoString go_file_path = {file_path, strlen(file_path)};
 
     GoInt handleID = gcf_open_write_mode(sessionID, go_file_path, (GoUint32) mode);
@@ -338,6 +374,9 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1truncate(JNIEnv 
                                                                   jstring jpath,
                                                                   jlong offset) {
     const char* path = (*env)->GetStringUTFChars(env, jpath, NULL);
+    if (path == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_path = {path, strlen(path)};
 
     GoUint8 result = gcf_truncate(sessionID, go_path, (GoUint64) offset);
@@ -357,6 +396,9 @@ JNIEXPORT jboolean JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1remove_1file(JNIEnv *env, jobject thiz,
                                                                      jint sessionID, jstring jfile_path) {
     const char* file_path = (*env)->GetStringUTFChars(env, jfile_path, NULL);
+    if (file_path == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_file_path = {file_path, strlen(file_path)};
 
     GoUint8 result = gcf_remove_file(sessionID, go_file_path);
@@ -370,6 +412,9 @@ JNIEXPORT jboolean JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1mkdir(JNIEnv *env, jobject thiz,
                                                       jint sessionID, jstring jdir_path, jint mode) {
     const char* dir_path = (*env)->GetStringUTFChars(env, jdir_path, NULL);
+    if (dir_path == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_dir_path = {dir_path, strlen(dir_path)};
 
     GoUint8 result = gcf_mkdir(sessionID, go_dir_path, (GoUint32) mode);
@@ -383,6 +428,9 @@ JNIEXPORT jboolean JNICALL
 Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1rmdir(JNIEnv *env, jobject thiz,
                                                       jint sessionID, jstring jdir_path) {
     const char* dir_path = (*env)->GetStringUTFChars(env, jdir_path, NULL);
+    if (dir_path == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_dir_path = {dir_path, strlen(dir_path)};
 
     GoUint8 result = gcf_rmdir(sessionID, go_dir_path);
@@ -397,8 +445,15 @@ Java_sushi_hardcore_droidfs_filesystems_GocryptfsVolume_native_1rename(JNIEnv *e
                                                                 jint sessionID, jstring jold_path,
                                                                 jstring jnew_path) {
     const char* old_path = (*env)->GetStringUTFChars(env, jold_path, NULL);
+    if (old_path == NULL) {
+        return JNI_FALSE;
+    }
     GoString go_old_path = {old_path, strlen(old_path)};
     const char* new_path = (*env)->GetStringUTFChars(env, jnew_path, NULL);
+    if (new_path == NULL) {
+        (*env)->ReleaseStringUTFChars(env, jold_path, old_path);
+        return JNI_FALSE;
+    }
     GoString go_new_path = {new_path, strlen(new_path)};
 
     GoUint8 result = gcf_rename(sessionID, go_old_path, go_new_path);
