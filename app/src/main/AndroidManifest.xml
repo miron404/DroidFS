@@ -32,6 +32,7 @@
         android:name=".VolumeManagerApp"
         android:intentMatchingFlags="enforceIntentFilter"
         android:memtagMode="sync"
+        android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/backup_rules">
         <activity android:name=".MainActivity" android:exported="true">
