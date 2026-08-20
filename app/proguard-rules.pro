@@ -35,3 +35,12 @@
 -keepclassmembers class * implements android.os.Parcelable {
     static ** CREATOR;
 }
+
+# Strip debug logging from release builds. PathUtils logs tree URIs, document ids
+# and the contents of /proc/mounts at Log.d level; that ends up in the system log
+# buffer and from there in bug reports. Log.e/Log.w are kept: they are needed for
+# diagnostics and do not print paths.
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int v(...);
+}
