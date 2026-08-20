@@ -615,33 +615,59 @@ class FileOperationService : Service() {
         })
     }
 
-    private fun exportFileInto(encryptedVolume: EncryptedVolume, srcPath: String, treeDocumentFile: DocumentFile): Boolean {
-        val outputStream = treeDocumentFile.createFile("*/*", File(srcPath).name)?.uri?.let {
-            contentResolver.openOutputStream(it)
+    /**
+     * Give an exported copy the modification time it had inside the volume.
+     *
+     * SAF offers no way to set a document's timestamp, so this only works when the destination
+     * maps to a real path reachable with the app's all-files access, and even then the filesystem
+     * may refuse. Best effort: on failure the copy just keeps the time it was written.
+     */
+    private fun restoreExportedMtime(dstDir: File?, dstName: String?, mtimeMillis: Long) {
+        if (dstDir == null || dstName == null || mtimeMillis <= 0) {
+            return
         }
-        return if (outputStream == null) {
-            false
-        } else {
-            encryptedVolume.exportFile(srcPath, outputStream)
+        File(dstDir, dstName).setLastModified(mtimeMillis)
+    }
+
+    private fun exportFileInto(
+        encryptedVolume: EncryptedVolume,
+        srcPath: String,
+        treeDocumentFile: DocumentFile,
+        dstDir: File?,
+        mtimeMillis: Long,
+    ): Boolean {
+        // createFile() may hand back a different name than requested (deduplication, added
+        // extension), so the timestamp is applied to the name it actually created.
+        val dstFile = treeDocumentFile.createFile("*/*", File(srcPath).name) ?: return false
+        val outputStream = contentResolver.openOutputStream(dstFile.uri) ?: return false
+        if (!encryptedVolume.exportFile(srcPath, outputStream)) {
+            return false
         }
+        restoreExportedMtime(dstDir, dstFile.name, mtimeMillis)
+        return true
     }
 
     private suspend fun recursiveExportDirectory(
         encryptedVolume: EncryptedVolume,
         plain_directory_path: String,
         treeDocumentFile: DocumentFile,
+        dstDir: File?,
+        mtimeMillis: Long,
     ): String? {
         treeDocumentFile.createDirectory(File(plain_directory_path).name)?.let { childTree ->
+            val childDir = dstDir?.let { parent -> childTree.name?.let { File(parent, it) } }
             val explorerElements = encryptedVolume.readDir(plain_directory_path) ?: return null
             for (e in explorerElements) {
                 yield()
                 val fullPath = PathUtils.pathJoin(plain_directory_path, e.name)
                 if (e.isDirectory) {
-                    recursiveExportDirectory(encryptedVolume, fullPath, childTree)?.let { return it }
-                } else if (!exportFileInto(encryptedVolume, fullPath, childTree)) {
+                    recursiveExportDirectory(encryptedVolume, fullPath, childTree, childDir, e.stat.mTime)?.let { return it }
+                } else if (!exportFileInto(encryptedVolume, fullPath, childTree, childDir, e.stat.mTime)) {
                     return fullPath
                 }
             }
+            // Directories go last: writing their contents bumps the timestamp again.
+            restoreExportedMtime(dstDir, childTree.name, mtimeMillis)
             return null
         }
         return treeDocumentFile.name
@@ -650,13 +676,15 @@ class FileOperationService : Service() {
     suspend fun exportFiles(volumeId: Int, items: List<ExplorerElement>, uri: Uri): TaskResult<out String?> {
         return volumeTask(R.string.file_op_export_msg, items.size, volumeId) { taskId, encryptedVolume ->
             val treeDocumentFile = DocumentFile.fromTreeUri(this@FileOperationService, uri)!!
+            // Only used to restore timestamps; null when the destination has no real path.
+            val dstDir = PathUtils.getFullPathFromTreeUri(uri, this@FileOperationService)?.let { File(it) }
             var failedItem: String? = null
             for (i in items.indices) {
                 yield()
                 failedItem = if (items[i].isDirectory) {
-                    recursiveExportDirectory(encryptedVolume, items[i].fullPath, treeDocumentFile)
+                    recursiveExportDirectory(encryptedVolume, items[i].fullPath, treeDocumentFile, dstDir, items[i].stat.mTime)
                 } else {
-                    if (exportFileInto(encryptedVolume, items[i].fullPath, treeDocumentFile)) {
+                    if (exportFileInto(encryptedVolume, items[i].fullPath, treeDocumentFile, dstDir, items[i].stat.mTime)) {
                         null
                     } else {
                         items[i].fullPath
