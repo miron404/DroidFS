@@ -27,18 +27,31 @@ class VolumeAdapter(
     private val inflater: LayoutInflater = LayoutInflater.from(context)
     lateinit var volumes: List<VolumeData>
 
+    private val volumeManagerObserver = object : VolumeManager.Observer {
+        override fun onVolumeStateChanged(volume: VolumeData) {
+            notifyItemChanged(volumes.indexOf(volume))
+        }
+
+        @SuppressLint("NotifyDataSetChanged")
+        override fun onAllVolumesClosed() {
+            notifyDataSetChanged()
+        }
+    }
+
     init {
         reloadVolumes()
-        volumeManager.observe(object : VolumeManager.Observer {
-            override fun onVolumeStateChanged(volume: VolumeData) {
-                notifyItemChanged(volumes.indexOf(volume))
-            }
+        volumeManager.observe(volumeManagerObserver)
+    }
 
-            @SuppressLint("NotifyDataSetChanged")
-            override fun onAllVolumesClosed() {
-                notifyDataSetChanged()
-            }
-        })
+    /**
+     * Stop listening to volume state changes.
+     *
+     * VolumeManager belongs to the Application, so an adapter left registered outlives its
+     * activity: every recreation of MainActivity used to add one more, each holding a destroyed
+     * Activity through its context.
+     */
+    fun destroy() {
+        volumeManager.removeObserver(volumeManagerObserver)
     }
 
     interface Listener {

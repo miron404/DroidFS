@@ -503,4 +503,11 @@ class MainActivity : BaseActivity(), VolumeAdapter.Listener {
         super.onStop()
         volumeOpener.wipeSensitive()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::volumeAdapter.isInitialized) {
+            volumeAdapter.destroy()
+        }
+    }
 }
