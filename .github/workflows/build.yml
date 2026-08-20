@@ -131,6 +131,10 @@ jobs:
           echo "Built: $APK"
           sha256sum "$APK"
           cp "$APK" DroidFS-arm64-unsigned.apk
+          # Needed to read stack traces: R8 renumbers lines and merges classes even with
+          # -dontobfuscate, so a crash report is not decodable without the mapping of this
+          # exact build.
+          cp app/build/outputs/mapping/release/mapping.txt mapping.txt
           # Convenience only. The key is generated here and discarded with the runner, so every
           # build is signed by a different identity: installing over the previous one requires
           # uninstalling first. Sign DroidFS-arm64-unsigned.apk with your own key to keep updates.
@@ -157,3 +161,4 @@ jobs:
           path: |
             DroidFS-arm64-unsigned.apk
             DroidFS-arm64-throwaway-signed.apk
+            mapping.txt
