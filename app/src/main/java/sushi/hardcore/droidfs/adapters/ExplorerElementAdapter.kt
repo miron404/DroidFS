@@ -128,6 +128,13 @@ class ExplorerElementAdapter(
 
         override fun bind(explorerElement: ExplorerElement, position: Int, isSelected: Boolean) {
             super.bind(explorerElement, position, isSelected)
+            // Rebinding a holder that is still attached -- what notifyDataSetChanged() does after a
+            // refresh -- never goes through onViewDetachedFromWindow, so a thumbnail request started
+            // for whatever this row showed before can still be in flight. Coil only cancels the
+            // previous request when a new one targets the same view, so the branches below that just
+            // call setImageResource() would let the stale request land and paint another file's
+            // thumbnail onto this row.
+            cancelThumbnailLoading()
             val adapter = bindingAdapter as ExplorerElementAdapter
             thumbnailLoadingTask = when {
                 FileTypes.isImage(explorerElement.name) -> {
