@@ -19,9 +19,9 @@
             android:layout_height="wrap_content"
             android:inputType="textPassword"
             android:maxLines="1"
-            android:autofillHints="password"
+            android:importantForAutofill="no"
             android:hint="@string/password"
-            android:imeOptions="actionDone">
+            android:imeOptions="actionDone|flagNoPersonalizedLearning">
             <requestFocus/>
         </EditText>
 
