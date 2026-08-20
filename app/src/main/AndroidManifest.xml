@@ -72,7 +72,8 @@
         <provider
             android:name=".content_providers.TemporaryFileProvider"
             android:authorities="${applicationId}.temporary_provider"
-            android:exported="true"/>
+            android:exported="false"
+            android:grantUriPermissions="true"/>
 
         <provider
             android:authorities="${applicationId}.volume_provider"

@@ -1,5 +1,6 @@
 package sushi.hardcore.droidfs
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -58,6 +59,17 @@ class FileShare(context: Context) {
                 action = Intent.ACTION_SEND_MULTIPLE
                 putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             }
+            // The provider is not exported: the receiving app can only read the
+            // exported file through an explicit, revocable grant. URIs carried in
+            // EXTRA_STREAM are not granted on their own, so they are mirrored into
+            // the ClipData, which is what the framework actually grants from.
+            // Read-only on purpose: sharing never needs to write back.
+            clipData = ClipData(null, arrayOf(contentType ?: CONTENT_TYPE_ANY), ClipData.Item(uris[0])).also { clip ->
+                for (i in 1 until uris.size) {
+                    clip.addItem(ClipData.Item(uris[i]))
+                }
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }, null)
     }
 
