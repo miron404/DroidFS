@@ -6,6 +6,8 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.biometric.BiometricManager
@@ -15,6 +17,7 @@ import androidx.fragment.app.FragmentActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.security.KeyStore
 import java.security.KeyStoreException
+import java.security.ProviderException
 import java.security.UnrecoverableKeyException
 import javax.crypto.*
 import javax.crypto.spec.GCMParameterSpec
@@ -33,6 +36,7 @@ class FingerprintProtector private constructor(
     }
 
     companion object {
+        private const val TAG = "FingerprintProtector"
         private const val ANDROID_KEY_STORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "Hash Key"
         private const val KEY_SIZE = 256
@@ -148,6 +152,54 @@ class FingerprintProtector private constructor(
         listener.onHashStorageReset()
     }
 
+    /**
+     * Create the key protecting the stored password hashes.
+     *
+     * The hash is the volume's master secret, so the key guarding it is bound as tightly as the
+     * device allows: it lives in the dedicated security chip when there is one, it cannot be used
+     * while the device is locked, and every single use requires a strong biometric.
+     */
+    private fun generateKey(): SecretKey {
+        val builder = KeyGenParameterSpec.Builder(
+            KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setKeySize(KEY_SIZE)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setUserAuthenticationRequired(true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // The hash is only ever needed with the app in the foreground, so there is no reason
+            // to leave the key usable while the device sits locked.
+            builder.setUnlockedDeviceRequired(true)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Timeout 0: authenticate on every use, no validity window. Restricting this to
+            // BIOMETRIC_STRONG refuses the device credential as a substitute for the fingerprint,
+            // matching what the BiometricPrompt already asks for.
+            builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+        }
+        val keyGenerator = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES,
+            ANDROID_KEY_STORE
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // Not every device has a StrongBox, and some advertise one but fail at generation
+            // time, so a TEE-backed key stays the fallback rather than a hard requirement.
+            try {
+                keyGenerator.init(builder.setIsStrongBoxBacked(true).build())
+                return keyGenerator.generateKey()
+            } catch (e: StrongBoxUnavailableException) {
+                Log.i(TAG, "No StrongBox on this device, falling back to the TEE")
+            } catch (e: ProviderException) {
+                Log.w(TAG, "StrongBox key generation failed, falling back to the TEE", e)
+            }
+            builder.setIsStrongBoxBacked(false)
+        }
+        keyGenerator.init(builder.build())
+        return keyGenerator.generateKey()
+    }
+
     private fun prepareCipher(): Boolean {
         if (!isCipherReady) {
             keyStore = KeyStore.getInstance(ANDROID_KEY_STORE)
@@ -169,20 +221,7 @@ class FingerprintProtector private constructor(
                     return false
                 }
             } else {
-                val builder = KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
-                builder.setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                builder.setKeySize(KEY_SIZE)
-                builder.setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                builder.setUserAuthenticationRequired(true)
-                val keyGenerator = KeyGenerator.getInstance(
-                    KeyProperties.KEY_ALGORITHM_AES,
-                    ANDROID_KEY_STORE
-                )
-                keyGenerator.init(builder.build())
-                keyGenerator.generateKey()
+                generateKey()
             }
             cipher = Cipher.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES + "/" + KeyProperties.BLOCK_MODE_GCM + "/" + KeyProperties.ENCRYPTION_PADDING_NONE
