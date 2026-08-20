@@ -79,7 +79,7 @@ class MainActivity : BaseActivity(), VolumeAdapter.Listener {
                 }
                 .show()
         }
-        explorerRouter = ExplorerRouter(this, intent)
+        explorerRouter = ExplorerRouter(this, intent, callingActivity?.packageName)
         volumeManager = (application as VolumeManagerApp).volumeManager
         volumeDatabase = VolumeDatabase(this)
         volumeAdapter = VolumeAdapter(

@@ -2,10 +2,25 @@ package sushi.hardcore.droidfs.explorers
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import sushi.hardcore.droidfs.util.IntentUtils
 
-class ExplorerRouter(private val context: Context, private val intent: Intent) {
-    var pickMode = intent.action == "pick"
+class ExplorerRouter(private val context: Context, private val intent: Intent, callingPackage: String?) {
+    /**
+     * Pick mode hands the caller back the plaintext paths of the files selected inside an
+     * unlocked volume, so it must never be reachable from outside the app. The "pick" action
+     * is not declared in any intent filter, but that only stops external callers on Android 16
+     * and later (see android:intentMatchingFlags in the manifest): on older releases an explicit
+     * intent bypasses filters entirely. Requiring the caller to be ourselves closes that gap on
+     * every supported release.
+     */
+    var pickMode = intent.action == "pick" && run {
+        val isSelf = callingPackage == context.packageName
+        if (!isSelf) {
+            Log.w("ExplorerRouter", "Rejecting pick request from $callingPackage")
+        }
+        isSelf
+    }
     var dropMode = (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) && intent.extras != null
 
     fun getExplorerIntent(volumeId: Int, volumeShortName: String): Intent {
