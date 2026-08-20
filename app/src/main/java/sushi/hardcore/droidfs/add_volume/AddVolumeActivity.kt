@@ -23,7 +23,7 @@ class AddVolumeActivity: BaseActivity() {
         setContentView(binding.root)
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        explorerRouter = ExplorerRouter(this, intent)
+        explorerRouter = ExplorerRouter(this, intent, callingActivity?.packageName)
         volumeOpener = VolumeOpener(this)
         if (savedInstanceState == null) {
             supportFragmentManager
