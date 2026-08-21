@@ -1,5 +1,6 @@
 package sushi.hardcore.droidfs.content_providers
 
+import sushi.hardcore.droidfs.util.Logger
 import android.content.Context
 import android.content.res.AssetFileDescriptor
 import android.database.Cursor
@@ -10,7 +11,6 @@ import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
-import android.util.Log
 import android.webkit.MimeTypeMap
 import coil3.BitmapImage
 import coil3.request.ImageRequest
@@ -200,15 +200,15 @@ class VolumeProvider: DocumentsProvider() {
 
         private val exportedFile: EncryptedFileProvider.ExportedFile by lazy {
             val size = encryptedVolume.getAttr(path)?.size ?: run {
-                Log.e(TAG, "stat() failed")
+                Logger.e(TAG, "stat() failed")
                 throw RuntimeException("stat() failed")
             }
             val exportedFile = encryptedFileProvider.createFile(path, size) ?: run {
-                Log.e(TAG, "Can't create exported file")
+                Logger.e(TAG, "Can't create exported file")
                 throw RuntimeException("Can't create exported file")
             }
             if (!encryptedFileProvider.exportFile(exportedFile, encryptedVolume)) {
-                Log.e(TAG, "File export failed")
+                Logger.e(TAG, "File export failed")
                 throw RuntimeException("File export failed")
             }
             exportedFile
@@ -237,7 +237,7 @@ class VolumeProvider: DocumentsProvider() {
         )
         when (result.second) {
             EncryptedFileProvider.Error.SUCCESS -> return result.first!!
-            EncryptedFileProvider.Error.WRITE_ACCESS_DENIED -> Log.e(TAG, "Unauthorized write access requested from $callingPackage")
+            EncryptedFileProvider.Error.WRITE_ACCESS_DENIED -> Logger.e(TAG, "Unauthorized write access requested from $callingPackage")
             else -> result.second.log()
         }
         return null

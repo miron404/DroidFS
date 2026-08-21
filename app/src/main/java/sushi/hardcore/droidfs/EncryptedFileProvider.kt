@@ -1,12 +1,12 @@
 package sushi.hardcore.droidfs
 
+import sushi.hardcore.droidfs.util.Logger
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.ParcelFileDescriptor
 import android.system.Os
-import android.util.Log
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -178,7 +178,7 @@ class EncryptedFileProvider(context: Context) {
         ;
 
         fun log() {
-            Log.e(
+            Logger.e(
                 TAG, when (this) {
                     SUCCESS -> "No error"
                     INVALID_STATE -> "Read after write is not supported"
@@ -213,7 +213,7 @@ class EncryptedFileProvider(context: Context) {
                 return if (volumeResources.volume.importFile(input, file.path)) {
                     true
                 } else {
-                    Log.e(TAG, "Failed to import file")
+                    Logger.e(TAG, "Failed to import file")
                     false
                 }
             }
@@ -223,7 +223,7 @@ class EncryptedFileProvider(context: Context) {
                     return Pair(null, Error.UNSUPPORTED_APPEND)
                 }
                 if (mode and ParcelFileDescriptor.MODE_TRUNCATE == 0) {
-                    Log.w(TAG, "Truncating file despite not being requested")
+                    Logger.w(TAG, "Truncating file despite not being requested")
                 }
                 val pipe = ParcelFileDescriptor.createReliablePipe()
                 val input = FileInputStream(pipe[0].fileDescriptor)

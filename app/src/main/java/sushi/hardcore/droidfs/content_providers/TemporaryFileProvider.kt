@@ -1,5 +1,6 @@
 package sushi.hardcore.droidfs.content_providers
 
+import sushi.hardcore.droidfs.util.Logger
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.content.Intent
@@ -8,7 +9,6 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
-import android.util.Log
 import android.webkit.MimeTypeMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -110,7 +110,7 @@ class TemporaryFileProvider : ContentProvider() {
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
         files[uri]?.let { file ->
             val volumeResources = volumeManager.getVolumeResources(file.volumeId) ?: run {
-                Log.e(TAG, "Volume closed for $uri")
+                Logger.e(TAG, "Volume closed while an exported file was still open")
                 return null
             }
             val result = encryptedFileProvider.openFile(
@@ -122,9 +122,9 @@ class TemporaryFileProvider : ContentProvider() {
             )
             when (result.second) {
                 EncryptedFileProvider.Error.SUCCESS -> return result.first!!
-                EncryptedFileProvider.Error.WRITE_ACCESS_DENIED -> Log.e(
+                EncryptedFileProvider.Error.WRITE_ACCESS_DENIED -> Logger.e(
                     TAG,
-                    "Unauthorized write access requested from $callingPackage to $uri"
+                    "Unauthorized write access requested from $callingPackage"
                 )
 
                 else -> result.second.log()

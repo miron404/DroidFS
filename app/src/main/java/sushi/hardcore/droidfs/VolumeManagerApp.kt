@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import sushi.hardcore.droidfs.content_providers.TemporaryFileProvider
 import sushi.hardcore.droidfs.util.AndroidUtils
+import sushi.hardcore.droidfs.util.Logger
 
 class VolumeManagerApp : Application(), DefaultLifecycleObserver {
     companion object {
@@ -73,6 +74,7 @@ class VolumeManagerApp : Application(), DefaultLifecycleObserver {
         super<Application>.onCreate()
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         AndroidUtils.LiveBooleanPreference.init(this, usfBackgroundDelegate, usfKeepOpenDelegate, lockOnScreenLockDelegate)
+        Logger.init(this)
         ContextCompat.registerReceiver(
             this,
             screenLockReceiver,

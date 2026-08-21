@@ -1,10 +1,10 @@
 package sushi.hardcore.droidfs.file_viewers
 
+import sushi.hardcore.droidfs.util.Logger
 import android.app.ActivityManager
 import android.content.res.Configuration
 import android.graphics.Matrix
 import android.os.Handler
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -336,7 +336,7 @@ class ImageViewer: FileViewerActivity() {
             rotateCacheKeys(path, imageViewModel.rotationAngle)
             null
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save rotation metadata", e)
+            Logger.e(TAG, "Failed to save rotation metadata", e)
             e.localizedMessage
         }
     }

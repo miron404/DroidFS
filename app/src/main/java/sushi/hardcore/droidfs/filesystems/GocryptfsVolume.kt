@@ -1,6 +1,6 @@
 package sushi.hardcore.droidfs.filesystems
 
-import android.util.Log
+import sushi.hardcore.droidfs.util.Logger
 import sushi.hardcore.droidfs.R
 import sushi.hardcore.droidfs.explorers.ExplorerElement
 import sushi.hardcore.droidfs.util.ObjRef
@@ -65,7 +65,7 @@ class GocryptfsVolume(private val sessionID: Int): EncryptedVolume() {
                 returnedHash,
             )) {
                 -1 -> {
-                    Log.e("gocryptfs", "Failed to open volume after creation")
+                    Logger.e("gocryptfs", "Failed to open volume after creation")
                     true
                 }
                 -2 -> false

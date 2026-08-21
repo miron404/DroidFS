@@ -1,11 +1,11 @@
 package sushi.hardcore.droidfs
 
+import sushi.hardcore.droidfs.util.Logger
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import android.util.Log
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 import sushi.hardcore.droidfs.util.PathUtils
 import java.io.File
@@ -43,7 +43,7 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
         //check if database has been corrupted by v2.1.1
         val cursor = db.rawQuery("SELECT * FROM $TABLE_NAME WHERE $COLUMN_TYPE IS NULL;", null)
         if (cursor.count > 0) {
-            Log.w(TAG, "Found ${cursor.count} corrupted volumes")
+            Logger.w(TAG, "Found ${cursor.count} corrupted volumes")
             while (cursor.moveToNext()) {
                 // fix columns left shift
                 val uuid = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UUID)+5)
@@ -53,7 +53,7 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
                 val hash = cursor.getBlob(cursor.getColumnIndexOrThrow(COLUMN_HASH)-1)
                 val iv = cursor.getBlob(cursor.getColumnIndexOrThrow(COLUMN_IV)-1)
                 if (db.delete(TABLE_NAME, "$COLUMN_IV=?", arrayOf(uuid)) < 1) {
-                    Log.e(TAG, "Failed to remove volume $name")
+                    Logger.e(TAG, "Failed to remove a corrupted volume")
                 }
                 if (db.insert(TABLE_NAME, null, ContentValues().apply {
                         put(COLUMN_UUID, uuid)
@@ -63,7 +63,7 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
                         put(COLUMN_HASH, hash)
                         put(COLUMN_IV, iv)
                     }) < 0) {
-                    Log.e(TAG, "Failed to insert volume $name")
+                    Logger.e(TAG, "Failed to reinsert a corrupted volume")
                 }
             }
         }
@@ -104,12 +104,12 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
                         )
                     ).renameTo(getNewVolumePath(volumeName))
                     if (!success) {
-                        Log.e(TAG, "Failed to move $volumeName")
+                        Logger.e(TAG, "Failed to move a volume into the volumes directory")
                     }
                 }
                 cursor.close()
             } else {
-                Log.e(TAG, "Volumes directory creation failed while upgrading")
+                Logger.e(TAG, "Volumes directory creation failed while upgrading")
             }
         }
         // Moving unregistered hidden volumes to the "volumes" directory
@@ -118,7 +118,7 @@ class VolumeDatabase(private val context: Context): SQLiteOpenHelper(context, Co
                 if (i.isDirectory && i.name != Constants.CRYFS_LOCAL_STATE_DIR && i.name != VolumeData.VOLUMES_DIRECTORY) {
                     if (EncryptedVolume.getVolumeType(i.path) != (-1).toByte()) {
                         if (!i.renameTo(getNewVolumePath(i.name))) {
-                            Log.e(TAG, "Failed to move "+i.name)
+                            Logger.e(TAG, "Failed to move a volume directory")
                         }
                     }
                 }

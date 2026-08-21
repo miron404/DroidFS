@@ -1,5 +1,6 @@
 package sushi.hardcore.droidfs
 
+import sushi.hardcore.droidfs.util.Logger
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
@@ -7,7 +8,6 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.biometric.BiometricManager
@@ -72,9 +72,9 @@ class FingerprintProtector private constructor(
                 }
             } catch (e: GeneralSecurityException) {
                 // The hashes are useless without the key, so keep going and remove them anyway.
-                Log.e(TAG, "Failed to delete the hash storage key", e)
+                Logger.e(TAG, "Failed to delete the hash storage key", e)
             } catch (e: IOException) {
-                Log.e(TAG, "Failed to delete the hash storage key", e)
+                Logger.e(TAG, "Failed to delete the hash storage key", e)
             }
             volumeDatabase.getVolumes().forEach { volumeDatabase.removeHash(it) }
         }
@@ -207,9 +207,9 @@ class FingerprintProtector private constructor(
                 keyGenerator.init(builder.setIsStrongBoxBacked(true).build())
                 return keyGenerator.generateKey()
             } catch (e: StrongBoxUnavailableException) {
-                Log.i(TAG, "No StrongBox on this device, falling back to the TEE")
+                Logger.i(TAG, "No StrongBox on this device, falling back to the TEE")
             } catch (e: ProviderException) {
-                Log.w(TAG, "StrongBox key generation failed, falling back to the TEE", e)
+                Logger.w(TAG, "StrongBox key generation failed, falling back to the TEE", e)
             }
             builder.setIsStrongBoxBacked(false)
         }

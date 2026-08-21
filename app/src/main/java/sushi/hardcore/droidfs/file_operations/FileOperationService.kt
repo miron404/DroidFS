@@ -1,5 +1,6 @@
 package sushi.hardcore.droidfs.file_operations
 
+import sushi.hardcore.droidfs.util.Logger
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,7 +16,6 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
@@ -178,7 +178,7 @@ class FileOperationService : Service() {
         val task = pendingTask
         pendingTask = null
         if (task == null) {
-            Log.w(TAG, "Started without pending task")
+            Logger.w(TAG, "Started without pending task")
             return
         }
         if (!::notificationManager.isInitialized) {

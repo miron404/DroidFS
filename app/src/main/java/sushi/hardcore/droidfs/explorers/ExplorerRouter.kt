@@ -1,8 +1,8 @@
 package sushi.hardcore.droidfs.explorers
 
+import sushi.hardcore.droidfs.util.Logger
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import sushi.hardcore.droidfs.util.IntentUtils
 
 class ExplorerRouter(private val context: Context, private val intent: Intent, callingPackage: String?) {
@@ -17,7 +17,7 @@ class ExplorerRouter(private val context: Context, private val intent: Intent, c
     var pickMode = intent.action == "pick" && run {
         val isSelf = callingPackage == context.packageName
         if (!isSelf) {
-            Log.w("ExplorerRouter", "Rejecting pick request from $callingPackage")
+            Logger.w("ExplorerRouter", "Rejecting pick request from $callingPackage")
         }
         isSelf
     }
