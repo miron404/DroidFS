@@ -63,6 +63,8 @@
     <string name="reset_hash_storage">Reset hash storage</string>
     <string name="MAC_verification_failed">Signature/MAC verification failed. Either Android KeyStore or the saved hash has been modified. Resetting hash storage can solve this problem.</string>
     <string name="hash_storage_reset">Hash storage successfully reset</string>
+    <string name="reset_hash_storage_summary">Delete the saved password hashes and the key protecting them</string>
+    <string name="reset_hash_storage_confirm">Volumes with a saved password hash will ask for their password again, and fingerprint unlock will have to be set up again for each of them. No volume is modified and no file is lost.</string>
     <string name="encrypt_action_description">Encrypting and saving password hash.</string>
     <string name="decrypt_action_description">Decrypting password hash.</string>
     <string name="title_activity_settings">DroidFS Settings</string>

@@ -15,8 +15,9 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.io.IOException
+import java.security.GeneralSecurityException
 import java.security.KeyStore
-import java.security.KeyStoreException
 import java.security.ProviderException
 import java.security.UnrecoverableKeyException
 import javax.crypto.*
@@ -53,6 +54,29 @@ class FingerprintProtector private constructor(
                 BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> 4
                 else -> -1
             }
+        }
+
+        /**
+         * Delete the key that protects the stored password hashes, and the hashes themselves.
+         *
+         * Volumes are untouched: only the ability to unlock them with a fingerprint goes away,
+         * and it can be set up again, which creates a fresh key.
+         */
+        fun clearHashStorage(volumeDatabase: VolumeDatabase) {
+            try {
+                KeyStore.getInstance(ANDROID_KEY_STORE).run {
+                    load(null)
+                    if (containsAlias(KEY_ALIAS)) {
+                        deleteEntry(KEY_ALIAS)
+                    }
+                }
+            } catch (e: GeneralSecurityException) {
+                // The hashes are useless without the key, so keep going and remove them anyway.
+                Log.e(TAG, "Failed to delete the hash storage key", e)
+            } catch (e: IOException) {
+                Log.e(TAG, "Failed to delete the hash storage key", e)
+            }
+            volumeDatabase.getVolumes().forEach { volumeDatabase.removeHash(it) }
         }
 
         fun new(
@@ -139,14 +163,7 @@ class FingerprintProtector private constructor(
     private lateinit var dataToProcess: ByteArray
 
     private fun resetHashStorage() {
-        try {
-            keyStore.deleteEntry(KEY_ALIAS)
-        } catch (e: KeyStoreException) {
-            e.printStackTrace()
-        }
-        volumeDatabase.getVolumes().forEach { volume ->
-            volumeDatabase.removeHash(volume)
-        }
+        clearHashStorage(volumeDatabase)
         isCipherReady = false
         Toast.makeText(activity, R.string.hash_storage_reset, Toast.LENGTH_SHORT).show()
         listener.onHashStorageReset()

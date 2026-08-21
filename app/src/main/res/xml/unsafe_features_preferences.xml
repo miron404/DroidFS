@@ -53,6 +53,12 @@
             android:title="@string/usf_fingerprint"
             app:widgetLayout="@layout/preference_widget_material_switch" />
 
+        <Preference
+            android:icon="@drawable/icon_delete"
+            android:key="reset_hash_storage"
+            android:title="@string/reset_hash_storage"
+            android:summary="@string/reset_hash_storage_summary" />
+
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:icon="@drawable/icon_lock_open"

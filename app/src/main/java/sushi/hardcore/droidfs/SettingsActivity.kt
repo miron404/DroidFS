@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -127,6 +128,22 @@ class SettingsActivity : BaseActivity() {
                 } else {
                     true
                 }
+            }
+            findPreference<Preference>("reset_hash_storage")?.setOnPreferenceClickListener {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.reset_hash_storage)
+                    .setMessage(R.string.reset_hash_storage_confirm)
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.reset_hash_storage) { _, _ ->
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            FingerprintProtector.clearHashStorage(VolumeDatabase(requireContext()))
+                        }
+                        Toast.makeText(
+                            requireContext(), R.string.hash_storage_reset, Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    .show()
+                true
             }
             val switchBackground = findPreference<SwitchPreferenceCompat>("usf_background")!!
             val switchKeepOpen = findPreference<SwitchPreferenceCompat>("usf_keep_open")!!
