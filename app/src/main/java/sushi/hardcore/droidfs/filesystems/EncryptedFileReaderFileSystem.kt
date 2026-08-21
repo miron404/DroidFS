@@ -35,6 +35,13 @@ class EncryptedFileReaderFileSystem(private val encryptedVolume: EncryptedVolume
         private var bytesRead = 0L
         private var nativeNanos = 0L
 
+        /**
+         * Both FileHandle and MediaDataSource report the end of the file as -1, while the volume
+         * returns 0 there. Returning 0 instead made okio's FileHandle.source() spin forever
+         * rather than finish.
+         */
+        private fun endOrCount(read: Int) = if (read <= 0) -1 else read
+
         private fun readNative(fileOffset: Long, array: ByteArray, arrayOffset: Int, byteCount: Int): Int {
             val start = System.nanoTime()
             val read = encryptedVolume.read(
@@ -70,14 +77,14 @@ class EncryptedFileReaderFileSystem(private val encryptedVolume: EncryptedVolume
             requests++
             // Large requests are already efficient, and buffering them would only add a copy.
             if (byteCount >= WINDOW_SIZE) {
-                return readNative(fileOffset, array, arrayOffset, byteCount)
+                return endOrCount(readNative(fileOffset, array, arrayOffset, byteCount))
             }
             val wanted = fileOffset + byteCount
             if (windowStart < 0 || fileOffset < windowStart || wanted > windowStart + windowLength) {
                 windowLength = readNative(fileOffset, window, 0, WINDOW_SIZE)
                 if (windowLength <= 0) {
                     windowStart = -1L
-                    return windowLength
+                    return -1
                 }
                 windowStart = fileOffset
             }

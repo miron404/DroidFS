@@ -14,6 +14,7 @@ import coil3.fetch.SourceFetchResult
 import coil3.request.Options
 import coil3.size.pxOrElse
 import coil3.video.VideoFrameDecoder
+import kotlinx.coroutines.CancellationException
 import okio.buffer
 import okio.sink
 import sushi.hardcore.droidfs.MemFile
@@ -59,9 +60,25 @@ class MemFileVideoDecoder(
     }
 
     override suspend fun decode(): DecodeResult {
+        return try {
+            decodeFromMemory() ?: VideoFrameDecoder(source, options).decode()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            // Nothing here is worth losing a thumbnail over: whatever went wrong, the default
+            // decoder can still do the job the slow way.
+            Log.w(TAG, "Falling back to the default decoder", t)
+            VideoFrameDecoder(source, options).decode()
+        }
+    }
+
+    /**
+     * @return null when this video should be left to the default decoder.
+     */
+    private suspend fun decodeFromMemory(): DecodeResult? {
         // Staging reads through its own handle, so `source` stays untouched and delegating
         // remains possible at any point below.
-        val memFile = stage() ?: return VideoFrameDecoder(source, options).decode()
+        val memFile = stage() ?: return null
         try {
             val start = System.nanoTime()
             val bitmap = ParcelFileDescriptor.AutoCloseInputStream(memFile.dup()).use { input ->
@@ -85,7 +102,7 @@ class MemFileVideoDecoder(
                 }
             }
             if (bitmap == null) {
-                return VideoFrameDecoder(source, options).decode()
+                return null
             }
             Log.i(TAG, "decoded in ${(System.nanoTime() - start) / 1000000}ms")
             return DecodeResult(
