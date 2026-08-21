@@ -12,7 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import sushi.hardcore.droidfs.filesystems.EncryptedFileReaderFileSystem
-import sushi.hardcore.droidfs.filesystems.MemFileVideoDecoder
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 
 class VolumeResources(val volume: EncryptedVolume, context: Context) {
@@ -29,10 +28,6 @@ class VolumeResources(val volume: EncryptedVolume, context: Context) {
             // pipeline just as busy while letting what is on screen finish first.
             .decoderCoroutineContext(Dispatchers.IO.limitedParallelism(4))
             .components {
-                // Ours first: it stages the video in memory and falls back to Coil's decoder
-                // for anything it cannot handle. Staging happens on the capped decoder context,
-                // so at most four copies exist at once.
-                add(MemFileVideoDecoder.Factory())
                 add(VideoFrameDecoder.Factory())
             }.also {
                 it.extras[Extras.Key.videoFramePercent] = 0.1
