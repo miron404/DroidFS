@@ -57,9 +57,10 @@ class EncryptedFileReaderFileSystem(private val encryptedVolume: EncryptedVolume
 
         override fun protectedClose() {
             if (requests > 0) {
-                // Debug level: R8 strips these from release builds. Deliberately no file name,
-                // so that a captured log stays shareable.
-                Log.d(
+                // TEMPORARY: info level so the line survives R8 in a release build. Revert this
+                // commit once the measurement is taken. Deliberately no file name, so that a
+                // captured log stays shareable.
+                Log.i(
                     TAG,
                     "${cachedSize / 1024}KiB file: $requests requests -> $nativeReads reads, " +
                     "${bytesRead / 1024}KiB read, ${nativeNanos / 1000000}ms decrypting"
