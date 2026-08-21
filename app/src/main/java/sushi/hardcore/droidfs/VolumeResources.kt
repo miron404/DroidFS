@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import sushi.hardcore.droidfs.filesystems.EncryptedFileReaderFileSystem
+import sushi.hardcore.droidfs.filesystems.MemFileVideoFetcher
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 
 class VolumeResources(val volume: EncryptedVolume, context: Context) {
@@ -27,7 +28,12 @@ class VolumeResources(val volume: EncryptedVolume, context: Context) {
             // with the visible rows waiting behind everything else. Capping the decoder keeps the
             // pipeline just as busy while letting what is on screen finish first.
             .decoderCoroutineContext(Dispatchers.IO.limitedParallelism(4))
+            // The fetcher stages videos in memory, so bound it the same way: at most four
+            // copies exist at once.
+            .fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(4))
             .components {
+                // Must come before the decoder: it decides how the video reaches it.
+                add(MemFileVideoFetcher.Factory(volume))
                 add(VideoFrameDecoder.Factory())
             }.also {
                 it.extras[Extras.Key.videoFramePercent] = 0.1
