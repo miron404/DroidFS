@@ -22,6 +22,7 @@ import sushi.hardcore.droidfs.BuildConfig
 import sushi.hardcore.droidfs.EncryptedFileProvider
 import sushi.hardcore.droidfs.FileTypes
 import sushi.hardcore.droidfs.R
+import sushi.hardcore.droidfs.VolumeResources
 import sushi.hardcore.droidfs.VolumeData
 import sushi.hardcore.droidfs.VolumeManager
 import sushi.hardcore.droidfs.VolumeManagerApp
@@ -253,7 +254,15 @@ class VolumeProvider: DocumentsProvider() {
 
         val image = runBlocking {
             volumeManager.getImageLoader(document.volumeId).execute(
-                ImageRequest.Builder(context!!).data(document.path).size(sizeHint.x, sizeHint.y).build()
+                ImageRequest.Builder(context!!)
+                    .data(document.path)
+                    .size(sizeHint.x, sizeHint.y)
+                    .apply {
+                        if (FileTypes.isVideo(document.path)) {
+                            decoderCoroutineContext(VolumeResources.videoDecoderContext)
+                        }
+                    }
+                    .build()
             )
         }.image
         val bitmap = (image as? BitmapImage)?.bitmap ?: return null

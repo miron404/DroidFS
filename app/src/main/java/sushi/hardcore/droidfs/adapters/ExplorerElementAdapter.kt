@@ -15,11 +15,13 @@ import coil3.load
 import coil3.request.Disposable
 import sushi.hardcore.droidfs.FileTypes
 import sushi.hardcore.droidfs.R
+import sushi.hardcore.droidfs.VolumeResources
 import sushi.hardcore.droidfs.explorers.ExplorerElement
 import sushi.hardcore.droidfs.filesystems.Stat
 import sushi.hardcore.droidfs.util.PathUtils
 import java.text.DateFormat
 import java.util.Locale
+import kotlin.coroutines.CoroutineContext
 
 class ExplorerElementAdapter(
     val activity: AppCompatActivity,
@@ -114,11 +116,17 @@ class ExplorerElementAdapter(
             thumbnailLoadingTask?.dispose()
         }
 
-        private fun setThumbnailOrDefaultIcon(fullPath: String, defaultIconId: Int, placeholder: Image?): Disposable? {
+        private fun setThumbnailOrDefaultIcon(
+            fullPath: String,
+            defaultIconId: Int,
+            placeholder: Image?,
+            decoderContext: CoroutineContext? = null,
+        ): Disposable? {
             val adapter = (bindingAdapter as ExplorerElementAdapter?)!!
             return if (adapter.loadThumbnails && adapter.thumbnailsLoader != null) {
                 icon.load(fullPath, adapter.thumbnailsLoader) {
                     placeholder(placeholder)
+                    decoderContext?.let { decoderCoroutineContext(it) }
                 }
             } else {
                 icon.setImageResource(defaultIconId)
@@ -141,7 +149,13 @@ class ExplorerElementAdapter(
                     setThumbnailOrDefaultIcon(explorerElement.fullPath, R.drawable.icon_file_image, adapter.iconImage)
                 }
                 FileTypes.isVideo(explorerElement.name) -> {
-                    setThumbnailOrDefaultIcon(explorerElement.fullPath, R.drawable.icon_file_video, adapter.iconVideo)
+                    // Only video is capped: see VolumeResources.videoDecoderContext.
+                    setThumbnailOrDefaultIcon(
+                        explorerElement.fullPath,
+                        R.drawable.icon_file_video,
+                        adapter.iconVideo,
+                        VolumeResources.videoDecoderContext,
+                    )
                 }
                 else -> {
                     icon.setImageResource(

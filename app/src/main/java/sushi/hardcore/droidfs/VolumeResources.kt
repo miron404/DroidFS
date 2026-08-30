@@ -11,22 +11,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlin.coroutines.CoroutineContext
 import sushi.hardcore.droidfs.filesystems.EncryptedFileReaderFileSystem
 import sushi.hardcore.droidfs.filesystems.EncryptedVolume
 
 class VolumeResources(val volume: EncryptedVolume, context: Context) {
+    companion object {
+        /**
+         * The context video thumbnails decode on, capped where image thumbnails are not.
+         *
+         * Images decode in process with BitmapFactory: that is plain CPU work, and letting the
+         * default IO dispatcher spread it over every core is exactly right. A video frame goes
+         * through the device's hardware decoder instead, and there are only a handful of those,
+         * so extra requests do not decode in parallel -- they queue. Measured on a directory of
+         * videos: 45 in flight gave 2833 ms median per thumbnail, 4 gave 868 ms, and both
+         * finished about 4 files a second. The cap does not cost throughput, it stops the rows
+         * on screen from waiting behind a hundred that are not.
+         *
+         * This is a limit, not a thread pool: limitedParallelism hands out a view of the same
+         * shared IO threads that lets at most this many of them run at once.
+         */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val videoDecoderContext: CoroutineContext = Dispatchers.IO.limitedParallelism(4)
+    }
+
     private val scopeDelegate = lazy { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
-    @OptIn(ExperimentalCoroutinesApi::class)
     private val imageLoaderDelegate = lazy {
         ImageLoader.Builder(context).diskCache(null)
             .fileSystem(EncryptedFileReaderFileSystem(volume))
-            // Coil decodes on Dispatchers.IO, which is up to 64 threads, and it starts a request
-            // for every element rather than the visible ones. A directory of videos then had 45
-            // frame decodes in flight at once, all queueing for the handful of hardware decoders
-            // the device has: measured 2.8 s median per thumbnail for about 60 ms of real work,
-            // with the visible rows waiting behind everything else. Capping the decoder keeps the
-            // pipeline just as busy while letting what is on screen finish first.
-            .decoderCoroutineContext(Dispatchers.IO.limitedParallelism(4))
             .components {
                 add(VideoFrameDecoder.Factory())
             }.also {
